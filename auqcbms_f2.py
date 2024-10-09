@@ -344,7 +344,7 @@ class AuQCBMSF2:
                 # Set the progress bar to 100% after export
                 self.progress_bar.setRange(0, 100)  # Set range for completion
                 self.progress_bar.setValue(100)  # Set to 100% after export
-                self.progress_bar.setFormat("")  # Clear the loading text
+                self.progress_bar.setFormat("Complete")  # Set the loading text to "Complete"
 
             iface.messageBar().pushInfo("Process Complete", f"Export completed successfully for group '{layer_group_name}'.")
 
