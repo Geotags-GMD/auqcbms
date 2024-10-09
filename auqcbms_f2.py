@@ -66,20 +66,12 @@ class AuQCBMSF2:
         self.progress_bar.setValue(0)
         layout.addWidget(self.progress_bar)
 
-        # Add a label and button for selecting the export path
+        # Add a label for selecting the export path
         self.export_path_label = QLabel("Select the export path:")
         layout.addWidget(self.export_path_label)
-
         self.export_path_button = QPushButton("Browse")
         self.export_path_button.clicked.connect(self.select_export_path)
         layout.addWidget(self.export_path_button)
-
-
-        # Export button to trigger export to GeoPackage
-        self.export_button = QPushButton("Export to GeoPackage")
-        self.export_button.clicked.connect(self.export_to_gpkg)
-        layout.addWidget(self.export_button)
-
         # Display the saved folder path if available
         if self.qml_folder:
             display_folder = os.path.basename(self.qml_folder)
@@ -89,13 +81,14 @@ class AuQCBMSF2:
         version_label = QLabel("Version: 1 build 1")
         layout.addWidget(version_label)
 
-      
-
         # Initialize export path variable
         self.export_path = None
 
         dialog.setLayout(layout)
         dialog.exec_()
+
+        # # Automatically call export after styles are applied
+        # self.export_layers()
 
     def select_folder(self):
         folder = QFileDialog.getExistingDirectory(None, "Select QML Folder")
@@ -211,9 +204,6 @@ class AuQCBMSF2:
             iface.messageBar().pushCritical("Error", "Please select a folder first.")
             return
 
-        # Disable the export button at the start of the process
-        self.export_button.setEnabled(False)
-
         selected_groups = [item.text() for item in self.group_listwidget.selectedItems()]
         if not selected_groups:
             iface.messageBar().pushCritical("Error", "Please select at least one layer group.")
@@ -273,12 +263,8 @@ class AuQCBMSF2:
 
                 total_layers += len(self.layers)
 
-        # Save the layers information to JSON
-        self.save_layers_to_json(self.layers, selected_groups[0])  # Save the layer names after processing
-
-        # After processing is complete, enable the export button
-        self.export_button.setEnabled(True)
-      
+        # Automatically call export after styles are applied
+        self.export_layers()  # Call export_layers after applying styles
 
     def select_export_path(self):
         """Open a dialog to select the export path and save it."""
@@ -289,7 +275,8 @@ class AuQCBMSF2:
             with open(self.get_folder_path_file(), 'w') as f:
                 json.dump({'folder': self.qml_folder, 'export_path': self.export_path}, f)
 
-    def export_to_gpkg(self):
+    def export_layers(self):
+        """Automate the export of layers to GeoPackage after applying styles."""
         selected_groups = [item.text() for item in self.group_listwidget.selectedItems()]
         if not selected_groups:
             iface.messageBar().pushCritical("Error", "Please select at least one layer group.")
@@ -330,25 +317,22 @@ class AuQCBMSF2:
             }
             all_layers.append(group_info)  # Add the group info to the list
 
-            # Set the progress bar maximum to the number of layers being exported
-            self.progress_bar.setMaximum(len(self.layers))
-            self.progress_bar.setValue(0)  # Reset to 0 before starting export
+            # Set the progress bar to loading state
+            self.progress_bar.setRange(0, 0)  # Indeterminate mode (loading)
+            self.progress_bar.setFormat("Loading...")  # Set the loading text
 
             # Execute the packaging algorithm
             try:
-                for index, layer in enumerate(self.layers):
-                    # Update the progress bar for each layer being exported
-                    self.progress_bar.setValue(index + 1)  # Update progress bar
-                    # Prepare parameters for packaging layers
-                    alg_params = {
-                        'LAYERS': [layer['id'] for layer in self.layers],  # Pass the list of layer IDs
-                        'EXPORT_RELATED_LAYERS': False,  # Don't include related layers
-                        'OVERWRITE': True,  # Allow overwriting the file
-                        'SAVE_METADATA': True,  # Include metadata in the package
-                        'SAVE_STYLES': True,  # Save the layer styles
-                        'SELECTED_FEATURES_ONLY': False,  # Include all features
-                        'OUTPUT': output_gpkg  # The selected GeoPackage file
-                    }
+                # Prepare parameters for packaging layers
+                alg_params = {
+                    'LAYERS': [layer['id'] for layer in self.layers],  # Pass the list of layer IDs
+                    'EXPORT_RELATED_LAYERS': False,  # Don't include related layers
+                    'OVERWRITE': True,  # Allow overwriting the file
+                    'SAVE_METADATA': True,  # Include metadata in the package
+                    'SAVE_STYLES': True,  # Save the layer styles
+                    'SELECTED_FEATURES_ONLY': False,  # Include all features
+                    'OUTPUT': output_gpkg  # The selected GeoPackage file
+                }
 
                 # Execute the packaging algorithm
                 processing.run("native:package", alg_params)
@@ -357,8 +341,10 @@ class AuQCBMSF2:
                 iface.messageBar().pushCritical("Error", f"Failed to export layers for group '{layer_group_name}': {str(e)}")
                 continue
             finally:
-                # Ensure the progress bar reaches 100% after export
-                self.progress_bar.setValue(len(self.layers))  # Update progress bar to 100% after export
+                # Set the progress bar to 100% after export
+                self.progress_bar.setRange(0, 100)  # Set range for completion
+                self.progress_bar.setValue(100)  # Set to 100% after export
+                self.progress_bar.setFormat("")  # Clear the loading text
 
             iface.messageBar().pushInfo("Process Complete", f"Export completed successfully for group '{layer_group_name}'.")
 
