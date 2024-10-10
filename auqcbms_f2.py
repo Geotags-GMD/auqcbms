@@ -6,7 +6,7 @@ import re
 from qgis.core import QgsProject, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsMessageLog
 from qgis.utils import iface
 from PyQt5.QtWidgets import (QAction, QFileDialog, QPushButton, QVBoxLayout, 
-                             QDialog, QLabel, QProgressBar, QListWidget, QListWidgetItem, QTextEdit)
+                             QDialog, QLabel, QProgressBar, QListWidget, QListWidgetItem)
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QThread, pyqtSignal
 
@@ -90,16 +90,11 @@ class AuQCBMSF2:
         version_label = QLabel("Version: 1 build 1")
         layout.addWidget(version_label)
 
-        # Add a QTextEdit for logging
-        self.log_display = QTextEdit()
-        self.log_display.setReadOnly(True)  # Make it read-only
-        layout.addWidget(self.log_display)
-
         dialog.setLayout(layout)
         dialog.exec_()
 
         # Automatically call export after styles are applied
-        self.export_layers()
+        # self.export_layers()
 
     def select_folder(self):
         folder = QFileDialog.getExistingDirectory(None, "Select QML Folder")
@@ -291,7 +286,7 @@ class AuQCBMSF2:
         """Automate the export of layers to GeoPackage after applying styles."""
         selected_groups = [item.text() for item in self.group_listwidget.selectedItems()]
         if not selected_groups:
-            self.log_message("Error: Please select at least one layer group.")
+            iface.messageBar().pushCritical("Error", "Please select at least one layer group.")
             return
 
         root = QgsProject.instance().layerTreeRoot()
@@ -303,7 +298,7 @@ class AuQCBMSF2:
 
             # Use the selected export path
             if not self.export_path:
-                self.log_message("Error: Please select a valid export path.")
+                iface.messageBar().pushCritical("Error", "Please select a valid export path.")
                 return
             
             output_gpkg = os.path.join(self.export_path, f"{sanitized_group_name}.gpkg")
@@ -317,7 +312,7 @@ class AuQCBMSF2:
                 self.collect_layers_from_group(selected_group, self.layers)
 
             if not self.layers:
-                self.log_message(f"Error: No layers found in the group '{layer_group_name}'.")
+                iface.messageBar().pushCritical("Error", f"No layers found in the group '{layer_group_name}'.")
                 continue
 
             # Prepare group information for JSON
@@ -348,9 +343,9 @@ class AuQCBMSF2:
 
                 # Execute the packaging algorithm
                 processing.run("native:package", alg_params)
-                self.log_message(f"Export Complete: Layers successfully exported to {output_gpkg}")
+                iface.messageBar().pushInfo("Export Complete", f"Layers successfully exported to {output_gpkg}")
             except Exception as e:
-                self.log_message(f"Error: Failed to export layers for group '{layer_group_name}': {str(e)}")
+                iface.messageBar().pushCritical("Error", f"Failed to export layers for group '{layer_group_name}': {str(e)}")
                 continue
             finally:
                 # Set the progress bar to 100% after export
@@ -358,11 +353,7 @@ class AuQCBMSF2:
                 self.progress_bar.setValue(100)  # Set to 100% after export
                 self.progress_bar.setFormat("Complete")  # Set the loading text to "Complete"
 
-            self.log_message(f"Process Complete: Export completed successfully for group '{layer_group_name}'.")
+            iface.messageBar().pushInfo("Process Complete", f"Export completed successfully for group '{layer_group_name}'.")
 
         # Save all layers to a single JSON file after processing all groups
         self.save_layers_to_json(all_layers, layer_group_name)  # Pass the list of all layers and the group name
-
-    def log_message(self, message):
-        """Append a message to the log display."""
-        self.log_display.append(message)
