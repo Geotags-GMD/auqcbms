@@ -191,21 +191,25 @@ class AuQCBMSF2:
             elif isinstance(node, QgsLayerTreeGroup):  # If it's a group, recursively collect layers from it
                 self.collect_layers_from_group(node, layer_list)
 
-    def save_layers_to_json(self, all_layers, group_name):
-        """Save all layer information to a single structured JSON file."""
-        temp_file = os.path.join(self.plugin_dir, 'layers_temp.json')
-        with open(temp_file, 'w') as f:
-            json.dump(all_layers, f, indent=4)
+    # def save_layers_to_json(self, all_layers, group_name):
+    #     """Save all layer information to a single structured JSON file."""
+    #     temp_file = os.path.join(self.plugin_dir, 'layers_temp.json')
+    #     with open(temp_file, 'w') as f:
+    #         json.dump(all_layers, f, indent=4)
 
-    def load_layers_from_json(self):
-        """Load the saved layer information from the temporary JSON file."""
-        temp_file = os.path.join(self.plugin_dir, 'layers_temp.json')
-        if os.path.exists(temp_file):
-            with open(temp_file, 'r') as f:
-                return json.load(f)
-        return []
+    # def load_layers_from_json(self):
+    #     """Load the saved layer information from the temporary JSON file."""
+    #     temp_file = os.path.join(self.plugin_dir, 'layers_temp.json')
+    #     if os.path.exists(temp_file):
+    #         with open(temp_file, 'r') as f:
+    #             return json.load(f)
+    #     return []
 
     def run(self):
+        # Reset state variables
+        self.layers = []  # Reset layers list
+        self.progress_bar.setValue(0)  # Reset progress bar
+
         if not self.qml_folder:
             iface.messageBar().pushCritical("Error", "Please select a folder first.")
             return
@@ -216,16 +220,7 @@ class AuQCBMSF2:
             return
 
         # Load QML file paths from JSON
-        qml_config_path = os.path.join(self.qml_folder, 'qml_config.json')
-        try:
-            with open(qml_config_path, 'r') as f:
-                self.qml_config = json.load(f)
-        except FileNotFoundError:
-            iface.messageBar().pushCritical("Error", f"QML configuration file not found: {qml_config_path}")
-            return
-        except json.JSONDecodeError:
-            iface.messageBar().pushCritical("Error", f"Invalid JSON in QML configuration file: {qml_config_path}")
-            return
+        self.load_qml_config_from_file()  # Extracted method for loading QML config
 
         qml_files = {key: os.path.join(self.qml_folder, value) for key, value in self.qml_config['qml_files'].items()}
         outside_group_qml = [os.path.join(self.qml_folder, qml) for qml in self.qml_config['outside_group_qml']]
@@ -233,11 +228,6 @@ class AuQCBMSF2:
 
         root = QgsProject.instance().layerTreeRoot()
         total_layers = 0
-
-        # Initialize layers list
-        self.layers = [] 
-
-        # Track layers that have been processed within selected groups
         processed_layers = set()
 
         # Process layers within selected groups
@@ -248,13 +238,8 @@ class AuQCBMSF2:
                 continue
 
             layers = [node.layer() for node in selected_group.children() if isinstance(node, QgsLayerTreeLayer)]
-            
-            # Check for mixed layers and remove them
-            self.remove_mixed_layers(selected_groups, selected_group)
-
-            # Collect layers from the current group for export
+            self.remove_mixed_layers(selected_groups, selected_group)  # Check for mixed layers
             self.collect_layers_from_group(selected_group, self.layers)  # Collect layers for export
-
             total_layers += len(layers)  # Update total layers count
 
         # Add count for layers outside the selected groups
@@ -277,15 +262,9 @@ class AuQCBMSF2:
                 processed_layers.add(layer)
                 self.progress_bar.setValue(self.progress_bar.value() + 1)  # Increment progress for each processed layer
 
-            # Rearrange layers within the selected group according to layer_order
+            # Rearrange layers and remove duplicates
             self.rearrange_layers(selected_group, layers, layer_order)
-            
-            # Remove duplicate layers
             self.remove_duplicate_layers(selected_group)
-
-            # Apply styles to layers after processing the group
-            for layer in layers:
-                self.apply_styles_to_layer(layer, qml_files)  # Apply styles at the end of processing
 
             # Export layers for the current group
             self.export_layers_for_group(selected_group_name, qml_files, outside_group_qml)
@@ -294,6 +273,24 @@ class AuQCBMSF2:
             self.progress_bar.setValue(0)  # Reset progress bar for the next group
 
         # Process layers outside the selected groups
+        self.process_outside_layers(outside_layers, outside_group_qml)  # Extracted method for processing outside layers
+
+        # Ensure the progress bar reaches 100%
+        self.progress_bar.setValue(total_layers)  # Set to total layers processed
+        iface.messageBar().pushInfo("Process Complete", "Styles applied, layers rearranged, duplicates removed, and layers exported for selected groups. Styles applied to layers outside the selected groups.")
+
+    def load_qml_config_from_file(self):
+        """Load QML configuration from the specified file."""
+        qml_config_path = os.path.join(self.qml_folder, 'qml_config.json')
+        try:
+            with open(qml_config_path, 'r') as f:
+                self.qml_config = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            iface.messageBar().pushCritical("Error", f"Failed to load QML configuration: {str(e)}")
+            self.qml_config = None
+
+    def process_outside_layers(self, outside_layers, outside_group_qml):
+        """Process layers that are outside the selected groups."""
         for layer in outside_layers:
             if self.should_apply_outside_group_style(layer):
                 for qml_file in outside_group_qml:
@@ -304,27 +301,17 @@ class AuQCBMSF2:
                         iface.messageBar().pushCritical("Error", f"Failed to load style for {layer.name()}: {str(e)}")
             self.progress_bar.setValue(self.progress_bar.value() + 1)  # Increment progress for each processed outside layer
 
-        # Ensure the progress bar reaches 100%
-        self.progress_bar.setValue(total_layers)  # Set to total layers processed
-
-        iface.messageBar().pushInfo("Process Complete", "Styles applied, layers rearranged, duplicates removed, and layers exported for selected groups. Styles applied to layers outside the selected groups.")
-
     def export_layers_for_group(self, layer_group_name, qml_files, outside_group_qml):
         """Export layers for a specific group."""
-        # Sanitize the layer group name to create a valid file name
         sanitized_group_name = re.sub(r'[<>:"/\\|?*]', '_', layer_group_name)
 
-        # Use the selected export path
         if not self.export_path:
             iface.messageBar().pushCritical("Error", "Please select a valid export path.")
             return
         
         output_gpkg = os.path.join(self.export_path, f"{sanitized_group_name}.gpkg")
-
-        # Clear the layers list for the current group
         self.layers = []  # Reset layers for the current group
 
-        # Collect layers from the current group
         selected_group = QgsProject.instance().layerTreeRoot().findGroup(layer_group_name)
         if selected_group:
             self.collect_layers_from_group(selected_group, self.layers)
@@ -333,35 +320,23 @@ class AuQCBMSF2:
             iface.messageBar().pushCritical("Error", f"No layers found in the group '{layer_group_name}'.")
             return
 
-        # Prepare group information for JSON
-        group_info = {
-            "name": layer_group_name,
-            "id": f"{sanitized_group_name}_id",  # Example ID, you can customize this
-            "type": "group",
-            "layers": self.layers
-        }
 
-        # Set the progress bar range for the current export
         self.progress_bar.setRange(0, len(self.layers))  # Set range based on the number of layers to export
         self.progress_bar.setValue(0)  # Reset progress bar for this export
 
-        # Execute the packaging algorithm
         try:
-            # Prepare parameters for packaging layers
             alg_params = {
                 'LAYERS': [layer['id'] for layer in self.layers],  # Pass the list of layer IDs
-                'EXPORT_RELATED_LAYERS': False,  # Don't include related layers
-                'OVERWRITE': True,  # Allow overwriting the file
-                'SAVE_METADATA': True,  # Include metadata in the package
-                'SAVE_STYLES': True,  # Save the layer styles
-                'SELECTED_FEATURES_ONLY': False,  # Include all features
-                'OUTPUT': output_gpkg  # The selected GeoPackage file
+                'EXPORT_RELATED_LAYERS': False,
+                'OVERWRITE': True,
+                'SAVE_METADATA': True,
+                'SAVE_STYLES': True,
+                'SELECTED_FEATURES_ONLY': False,
+                'OUTPUT': output_gpkg
             }
 
-            # Execute the packaging algorithm
             processing.run("native:package", alg_params)
 
-            # Increment the progress bar for each layer processed
             for _ in self.layers:
                 self.progress_bar.setValue(self.progress_bar.value() + 1)  # Increment progress for each processed layer
 
@@ -369,7 +344,6 @@ class AuQCBMSF2:
         except Exception as e:
             iface.messageBar().pushCritical("Error", f"Failed to export layers for group '{layer_group_name}': {str(e)}")
         finally:
-            # Set the progress bar to 100% after export
             self.progress_bar.setRange(0, 100)  # Set range for completion
             self.progress_bar.setValue(100)  # Set to 100% after export
             self.progress_bar.setFormat("Complete")  # Set the loading text to "Complete"
@@ -411,78 +385,5 @@ class AuQCBMSF2:
             with open(self.get_folder_path_file(), 'w') as f:
                 json.dump({'folder': self.qml_folder, 'export_path': self.export_path}, f)
 
-    
-        """Automate the export of layers to GeoPackage after applying styles."""
-        selected_groups = [item.text() for item in self.group_listwidget.selectedItems()]
-        if not selected_groups:
-            iface.messageBar().pushCritical("Error", "Please select at least one layer group.")
-            return
+      
 
-        root = QgsProject.instance().layerTreeRoot()
-        all_layers = []  # List to hold all layer groups
-
-        for layer_group_name in selected_groups:  # Iterate through all selected groups
-            # Sanitize the layer group name to create a valid file name
-            sanitized_group_name = re.sub(r'[<>:"/\\|?*]', '_', layer_group_name)
-
-            # Use the selected export path
-            if not self.export_path:
-                iface.messageBar().pushCritical("Error", "Please select a valid export path.")
-                return
-            
-            output_gpkg = os.path.join(self.export_path, f"{sanitized_group_name}.gpkg")
-
-            # Clear the layers list for the current group
-            self.layers = []  # Reset layers for the current group
-
-            # Collect layers from the current group
-            selected_group = root.findGroup(layer_group_name)
-            if selected_group:
-                self.collect_layers_from_group(selected_group, self.layers)
-
-            if not self.layers:
-                iface.messageBar().pushCritical("Error", f"No layers found in the group '{layer_group_name}'.")
-                continue
-
-            # Prepare group information for JSON
-            group_info = {
-                "name": layer_group_name,
-                "id": f"{sanitized_group_name}_id",  # Example ID, you can customize this
-                "type": "group",
-                "layers": self.layers
-            }
-            all_layers.append(group_info)  # Add the group info to the list
-
-            # Set the progress bar to loading state
-            self.progress_bar.setRange(0, 0)  # Indeterminate mode (loading)
-            self.progress_bar.setFormat("Loading...")  # Set the loading text
-
-            # Execute the packaging algorithm
-            try:
-                # Prepare parameters for packaging layers
-                alg_params = {
-                    'LAYERS': [layer['id'] for layer in self.layers],  # Pass the list of layer IDs
-                    'EXPORT_RELATED_LAYERS': False,  # Don't include related layers
-                    'OVERWRITE': True,  # Allow overwriting the file
-                    'SAVE_METADATA': True,  # Include metadata in the package
-                    'SAVE_STYLES': True,  # Save the layer styles
-                    'SELECTED_FEATURES_ONLY': False,  # Include all features
-                    'OUTPUT': output_gpkg  # The selected GeoPackage file
-                }
-
-                # Execute the packaging algorithm
-                processing.run("native:package", alg_params)
-                iface.messageBar().pushInfo("Export Complete", f"Layers successfully exported to {output_gpkg}")
-            except Exception as e:
-                iface.messageBar().pushCritical("Error", f"Failed to export layers for group '{layer_group_name}': {str(e)}")
-                continue
-            finally:
-                # Set the progress bar to 100% after export
-                self.progress_bar.setRange(0, 100)  # Set range for completion
-                self.progress_bar.setValue(100)  # Set to 100% after export
-                self.progress_bar.setFormat("Complete")  # Set the loading text to "Complete"
-
-            iface.messageBar().pushInfo("Process Complete", f"Export completed successfully for group '{layer_group_name}'.")
-
-        # Save all layers to a single JSON file after processing all groups
-        self.save_layers_to_json(all_layers, layer_group_name)  # Pass the list of all layers and the group name
