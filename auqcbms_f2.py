@@ -51,7 +51,6 @@ class AuQCBMSF2:
         # ListWidget to select multiple layer groups
         self.group_listwidget = QListWidget()
         self.group_listwidget.setSelectionMode(QListWidget.MultiSelection)
-        layout.addWidget(QLabel("Select Layer Groups:"))
         layout.addWidget(self.group_listwidget)
 
         # Populate the ListWidget with available layer groups
@@ -337,9 +336,9 @@ class AuQCBMSF2:
             "layers": self.layers
         }
 
-        # Set the progress bar to loading state
-        self.progress_bar.setRange(0, 0)  # Indeterminate mode (loading)
-        self.progress_bar.setFormat("Loading...")  # Set the loading text
+        # Set the progress bar range for the current export
+        self.progress_bar.setRange(0, len(self.layers))  # Set range based on the number of layers to export
+        self.progress_bar.setValue(0)  # Reset progress bar for this export
 
         # Execute the packaging algorithm
         try:
@@ -356,6 +355,11 @@ class AuQCBMSF2:
 
             # Execute the packaging algorithm
             processing.run("native:package", alg_params)
+
+            # Increment the progress bar for each layer processed
+            for _ in self.layers:
+                self.progress_bar.setValue(self.progress_bar.value() + 1)  # Increment progress for each processed layer
+
             iface.messageBar().pushInfo("Export Complete", f"Layers successfully exported to {output_gpkg}")
         except Exception as e:
             iface.messageBar().pushCritical("Error", f"Failed to export layers for group '{layer_group_name}': {str(e)}")
