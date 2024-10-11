@@ -136,6 +136,7 @@ class AuQCBMSF2:
         for key, qml_file in qml_files.items():
             if key in layer_name.lower():
                 try:
+                    # Attempt to load the new style
                     layer.loadNamedStyle(qml_file)
                     layer.triggerRepaint()
                 except Exception as e:
@@ -281,6 +282,10 @@ class AuQCBMSF2:
             
             # Remove duplicate layers
             self.remove_duplicate_layers(selected_group)
+
+            # Apply styles to layers after processing the group
+            for layer in layers:
+                self.apply_styles_to_layer(layer, qml_files)  # Apply styles at the end of processing
 
             # Export layers for the current group
             self.export_layers_for_group(selected_group_name, qml_files, outside_group_qml)
