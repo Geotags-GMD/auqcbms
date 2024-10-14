@@ -320,7 +320,6 @@ class AuQCBMSF2:
             iface.messageBar().pushCritical("Error", f"No layers found in the group '{layer_group_name}'.")
             return
 
-
         self.progress_bar.setRange(0, len(self.layers))  # Set range based on the number of layers to export
         self.progress_bar.setValue(0)  # Reset progress bar for this export
 
@@ -337,7 +336,8 @@ class AuQCBMSF2:
 
             processing.run("native:package", alg_params)
 
-            for _ in self.layers:
+            # Update progress bar accurately after each layer is processed
+            for layer in self.layers:
                 self.progress_bar.setValue(self.progress_bar.value() + 1)  # Increment progress for each processed layer
 
             iface.messageBar().pushInfo("Export Complete", f"Layers successfully exported to {output_gpkg}")
