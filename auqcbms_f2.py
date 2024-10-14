@@ -301,8 +301,63 @@ class AuQCBMSF2:
                         iface.messageBar().pushCritical("Error", f"Failed to load style for {layer.name()}: {str(e)}")
             self.progress_bar.setValue(self.progress_bar.value() + 1)  # Increment progress for each processed outside layer
 
+    # def export_layers_for_group(self, layer_group_name, qml_files, outside_group_qml):
+    #     """Export all layers inside a specific group into a single GeoPackage."""
+    #     sanitized_group_name = re.sub(r'[<>:"/\\|?*]', '_', layer_group_name)
+
+    #     if not self.export_path:
+    #         iface.messageBar().pushCritical("Error", "Please select a valid export path.")
+    #         return
+        
+    #     output_gpkg = os.path.join(self.export_path, f"{sanitized_group_name}.gpkg")
+    #     self.layers = []  # Reset layers for the current group
+
+    #     selected_group = QgsProject.instance().layerTreeRoot().findGroup(layer_group_name)
+    #     if selected_group:
+    #         self.collect_layers_from_group(selected_group, self.layers)
+
+    #     if not self.layers:
+    #         iface.messageBar().pushCritical("Error", f"No layers found in the group '{layer_group_name}'.")
+    #         return
+
+    #     total_layers = len(self.layers)
+    #     self.progress_bar.setRange(0, total_layers)  # Set range based on the number of layers to export
+    #     self.progress_bar.setValue(0)  # Reset progress bar for this export
+
+    #     try:
+    #         iface.messageBar().pushInfo("Info", f"Exporting {total_layers} layers to {output_gpkg}")
+
+    #         # Prepare the layer IDs for export
+    #         layer_ids = [layer['id'] for layer in self.layers]
+
+    #         # Run the export process for all layers in one go
+    #         alg_params = {
+    #             'LAYERS': layer_ids,  # Pass all layer IDs
+    #             'EXPORT_RELATED_LAYERS': False,
+    #             'OVERWRITE': True,
+    #             'SAVE_METADATA': True,
+    #             'SAVE_STYLES': True,
+    #             'SELECTED_FEATURES_ONLY': False,
+    #             'OUTPUT': output_gpkg
+    #         }
+
+    #         processing.run("native:package", alg_params)
+
+    #         # Update progress bar to 100% after export
+    #         self.progress_bar.setValue(total_layers)  # Set progress bar to complete after export
+    #         iface.messageBar().pushInfo("Export Complete", f"Layers successfully exported to {output_gpkg}")
+    #     except Exception as e:
+    #         iface.messageBar().pushCritical("Error", f"Failed to export layers for group '{layer_group_name}': {str(e)}")
+    #     finally:
+    #         self.progress_bar.setRange(0, 100)  # Set range for completion
+    #         self.progress_bar.setValue(100)  # Set to 100% after export
+    #         self.progress_bar.setFormat("Complete")  # Set the loading text to "Complete"
+    #         self.progress_bar.setValue(0)  # Reset progress bar to 0 after completion
+
+    #     iface.messageBar().pushInfo("Process Complete", f"Export completed successfully for group '{layer_group_name}'.")
+
     def export_layers_for_group(self, layer_group_name, qml_files, outside_group_qml):
-        """Export layers for a specific group."""
+        """Export all layers inside a specific group into a single GeoPackage."""
         sanitized_group_name = re.sub(r'[<>:"/\\|?*]', '_', layer_group_name)
 
         if not self.export_path:
@@ -313,8 +368,11 @@ class AuQCBMSF2:
         self.layers = []  # Reset layers for the current group
 
         selected_group = QgsProject.instance().layerTreeRoot().findGroup(layer_group_name)
-        if selected_group:
-            self.collect_layers_from_group(selected_group, self.layers)
+        if not selected_group:
+            iface.messageBar().pushCritical("Error", f"Layer group '{layer_group_name}' not found.")
+            return
+
+        self.collect_layers_from_group(selected_group, self.layers)
 
         if not self.layers:
             iface.messageBar().pushCritical("Error", f"No layers found in the group '{layer_group_name}'.")
@@ -324,8 +382,12 @@ class AuQCBMSF2:
         self.progress_bar.setValue(0)  # Reset progress bar for this export
 
         try:
+            # Prepare the layer IDs for export
+            layer_ids = [layer['id'] for layer in self.layers]
+            iface.messageBar().pushInfo("Info", f"Exporting {len(layer_ids)} layers to {output_gpkg}")
+
             alg_params = {
-                'LAYERS': [layer['id'] for layer in self.layers],  # Pass the list of layer IDs
+                'LAYERS': layer_ids,  # Pass all layer IDs
                 'EXPORT_RELATED_LAYERS': False,
                 'OVERWRITE': True,
                 'SAVE_METADATA': True,
@@ -336,16 +398,13 @@ class AuQCBMSF2:
 
             processing.run("native:package", alg_params)
 
-            # Update progress bar accurately after each layer is processed
-            for layer in self.layers:
-                self.progress_bar.setValue(self.progress_bar.value() + 1)  # Increment progress for each processed layer
-
+            self.progress_bar.setValue(len(self.layers))  # Set progress bar to complete after export
             iface.messageBar().pushInfo("Export Complete", f"Layers successfully exported to {output_gpkg}")
         except Exception as e:
             iface.messageBar().pushCritical("Error", f"Failed to export layers for group '{layer_group_name}': {str(e)}")
         finally:
-            self.progress_bar.setRange(0, 100)  # Set range for completion
-            self.progress_bar.setValue(100)  # Set to 100% after export
+            self.progress_bar.setRange(0, len(self.layers))  # Set range for completion
+            self.progress_bar.setValue(len(self.layers))  # Set to 100% after export
             self.progress_bar.setFormat("Complete")  # Set the loading text to "Complete"
 
         iface.messageBar().pushInfo("Process Complete", f"Export completed successfully for group '{layer_group_name}'.")
