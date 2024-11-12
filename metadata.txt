@@ -3,9 +3,9 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=AuQCBMSF2
+name=AuQCBMS
 qgisMinimumVersion=3.0
-description=AuQCBMSF2
+description=AuQCBMS
 version=0.1
 author=PSA
 email=test@gmail.com

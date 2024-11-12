@@ -32,5 +32,5 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :type iface: QgsInterface
     """
     #
-    from .auqcbms_f2 import AuQCBMSF2
-    return AuQCBMSF2(iface)
+    from .auqcbms import AuQCBMS
+    return AuQCBMS(iface)
