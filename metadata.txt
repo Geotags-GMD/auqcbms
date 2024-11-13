@@ -4,7 +4,7 @@
 
 [general]
 name=AuQCBMS
-qgisMinimumVersion=3.0
+qgisMinimumVersion=3.28.15
 description=AuQCBMS
 version=0.1
 author=PSA

@@ -61,6 +61,45 @@ def export_selected_features(layers, layer_group_name, output_gpkg):
         print(f"Error: {str(e)}")
 
 
+def load_layer_geotagging(self, shapefile_name, layer_name):
+    shapefile_path = os.path.join(os.path.dirname(__file__), 'shp', shapefile_name)
+    layer = QgsVectorLayer(shapefile_path, layer_name, 'ogr')
+    
+    if not layer.isValid():
+        print(f"Failed to load the layer: {shapefile_path}")
+    else:
+        # Check if the layer is already in the project
+        existing_layer = QgsProject.instance().mapLayersByName(layer_name)
+        
+        if existing_layer:
+            print(f"The layer '{layer_name}' already exists in the project.")
+        else:
+            # Add the layer to the project
+            QgsProject.instance().addMapLayer(layer)
+            print(f"Layer loaded successfully: {shapefile_path}")
+        
+            # Find or create the 'CBMS Form' group
+            root = QgsProject.instance().layerTreeRoot()
+            cbms_group = root.findGroup('CBMS Form')
+            
+            if not cbms_group:
+                cbms_group = root.addGroup('CBMS Form')
+                print("Group 'CBMS Form' created.")
+            
+            # Find the layer node and add it to the group
+            layer_node = root.findLayer(layer.id())
+            if layer_node:
+                # Check if the layer is already in the group
+                if not cbms_group.findLayer(layer.id()):
+                    cbms_group.addChildNode(layer_node)
+                    print(f"Layer '{layer_name}' added to 'CBMS Form' group.")
+                else:
+                    print(f"Layer '{layer_name}' is already in the 'CBMS Form' group.")
+            else:
+                print(f"Layer node for '{layer_name}' not found.")
+
+
+
 class AuQCBMSDialog(QDialog):
     def __init__(self):
         super().__init__()
@@ -75,9 +114,9 @@ class AuQCBMSDialog(QDialog):
         # QgsFileWidget to select export folder
         self.export_path_widget = QgsFileWidget()
         self.export_path_widget.setStorageMode(QgsFileWidget.StorageMode.GetDirectory)
-        self.export_path_widget.setDialogTitle("Select Export Folder")
+        self.export_path_widget.setDialogTitle("Select Export Directory")
         self.export_path_widget.fileChanged.connect(self.update_export_path_label)
-        self.layout.addWidget(QLabel("Select Export Folder:"))
+        self.layout.addWidget(QLabel("Export Directory:"))
         self.layout.addWidget(self.export_path_widget)
 
         # Get the input field and disable it, but leave the button enabled
@@ -121,6 +160,7 @@ class AuQCBMSDialog(QDialog):
 
         # Load JSON and layers
         self.load_json_and_layers()
+        
 
     def update_export_path_label(self):
         self.export_folder_path = self.export_path_widget.filePath()
@@ -246,8 +286,6 @@ class AuQCBMSDialog(QDialog):
         layer_group_name = self.layer_group_dropdown.currentText()
         export_selected_features(self.layers, layer_group_name, output_gpkg)
 
-        self.copy_shapefile_to_export(geocode_folder)
-
         # Update the data source of each layer to the exported GeoPackage
         for layer_name, layer in self.layers.items():
             if layer is not None:
@@ -312,6 +350,8 @@ class AuQCBMSDialog(QDialog):
                     print(f"Number of selected features in {input_layer.name()}: {selected_count}")
         
         print("Selection by location completed.")
+
+
 
 
 
