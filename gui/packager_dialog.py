@@ -11,9 +11,11 @@ from qgis.gui import QgsFileWidget
 import processing
 import shutil
 
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+
 # Function to load the JSON file containing QML paths from the built-in qml folder
 def load_json_file():
-    json_file_path = os.path.join(os.path.dirname(__file__), 'qml', 'qml_config.json')
+    json_file_path = os.path.join(os.path.dirname(__file__), '../qml', 'qml_config.json')
     with open(json_file_path, 'r') as f:
         return json.load(f)
 
@@ -103,7 +105,7 @@ def load_layer_geotagging(self, shapefile_name, layer_name):
 class AuQCBMSDialog(QDialog):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AUQCBMS")
+        self.setWindowTitle("Packager")
 
         # Layout setup
         self.layout = QVBoxLayout(self)
@@ -237,17 +239,26 @@ class AuQCBMSDialog(QDialog):
             
 
     def run(self):
-        qml_data = load_json_file()
 
-        layer_order = qml_data['layer_order']
+        qml_data = load_json_file()
+        if not qml_data:
+            print("Error: QML data is empty. Check the JSON file.")
+            return
+
+        # Layer order as specified in the JSON file
+        layer_order = qml_data.get('layer_order', [])
         for index, layer_name in enumerate(layer_order):
             layer = self.layers.get(layer_name)
             if layer is not None:
-                qml_file = qml_data['qml_files'].get(layer_name)
+                qml_file = qml_data.get('qml_files', {}).get(layer_name)
                 if qml_file:
-                    qml_path = os.path.join(os.path.dirname(__file__), 'qml', qml_file)
+                    qml_path = os.path.join(BASE_DIR, 'qml', qml_file)
                     apply_style(layer, qml_path)
                     self.progress_bar.setValue((index + 1) * (100 // len(layer_order)))
+                else:
+                    print(f"Warning: No QML file defined for layer '{layer_name}' in JSON configuration.")
+            else:
+                print(f"Warning: No matching layer found for '{layer_name}'.")
 
         selected_geocode = self.geocode_dropdown.currentText()
         self.filter_layers(selected_geocode)

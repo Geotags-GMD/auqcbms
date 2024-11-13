@@ -2,8 +2,8 @@ import os
 import json
 from qgis.PyQt.QtWidgets import QAction, QToolBar
 from qgis.PyQt.QtGui import QIcon
-from .auqcbms_dialog import AuQCBMSDialog
-from .validator_dialog import ValidatorDialog
+from .gui.packager_dialog import AuQCBMSDialog
+from .gui.validator_dialog import ValidatorDialog
 
 class AuQCBMS:
     def __init__(self, iface):
