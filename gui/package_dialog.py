@@ -75,6 +75,7 @@ class PackageDialog(QDialog, DialogUi):
         self.project_checker = ProjectChecker(QgsProject.instance())
         # self.refresh_devices()
         self.setup_gui()
+        self.update_geocode_dropdown()
 
         self.offliner.warning.connect(self.show_warning)
 
@@ -278,25 +279,48 @@ class PackageDialog(QDialog, DialogUi):
     def run(self):
         selected_geocode = self.geocode_dropdown.currentText()
         self.filter_layers(selected_geocode)
-        self.select_by_location()
 
 
     def filter_layers(self, selected_geocode):
+        # Check if selected_geocode is empty or None
+        if not selected_geocode:
+            QMessageBox.warning(self, "No Geocode Selected", "Please select a geocode before filtering layers.")
+            return  # Exit the method if no geocode is selected
+
         print(f"Filtering layers with geocode: {selected_geocode}")
+        
+        # Check if 'bgy' layer is valid before using it
         if 'bgy' in self.layers and self.layers['bgy'] is not None:
-            self.layers['bgy'].setSubsetString(f"geocode = '{selected_geocode}'")
+            if self.layers['bgy'].isValid():  # Check if the layer is valid
+                self.layers['bgy'].setSubsetString(f"geocode = '{selected_geocode}'")
+            else:
+                QMessageBox.warning(self, "Layer Invalid", "The 'bgy' layer is no longer valid.")
 
         first_8_digits = selected_geocode[:8]
 
+        # Check if 'ea2024' layer is valid before using it
         if 'ea2024' in self.layers and self.layers['ea2024'] is not None:
-            self.layers['ea2024'].setSubsetString(f"geocode LIKE '{first_8_digits}%'")
+            if self.layers['ea2024'].isValid():  # Check if the layer is valid
+                self.layers['ea2024'].setSubsetString(f"geocode LIKE '{first_8_digits}%'")
+            else:
+                QMessageBox.warning(self, "Layer Invalid", "The 'ea2024' layer is no longer valid.")
 
+        # Check if 'bldg_point' layer is valid before using it
         if 'bldg_point' in self.layers and self.layers['bldg_point'] is not None:
-            self.layers['bldg_point'].setSubsetString(f"geocode LIKE '{first_8_digits}%'")
+            if self.layers['bldg_point'].isValid():  # Check if the layer is valid
+                self.layers['bldg_point'].setSubsetString(f"geocode LIKE '{first_8_digits}%'")
+            else:
+                QMessageBox.warning(self, "Layer Invalid", "The 'bldg_point' layer is no longer valid.")
 
+        # Check if 'river' layer is valid before using it
         if 'river' in self.layers and self.layers['river'] is not None:
-            self.layers['river'].setSubsetString(f"geocode LIKE '{first_8_digits}%'")
-        
+            if self.layers['river'].isValid():  # Check if the layer is valid
+                self.layers['river'].setSubsetString(f"geocode LIKE '{first_8_digits}%'")
+            else:
+                QMessageBox.warning(self, "Layer Invalid", "The 'river' layer is no longer valid.")
+
+        # Call select_by_location only if a valid geocode is selected
+        self.select_by_location()
 
     def reset_filter_on_layer_group_change(self):
         self.geocode_dropdown.clear()
@@ -348,7 +372,6 @@ class PackageDialog(QDialog, DialogUi):
         self.layer_group_dropdown.clear()
         layer_groups = [layer.name() for layer in QgsProject.instance().layerTreeRoot().children() if isinstance(layer, QgsLayerTreeGroup)]
         self.layer_group_dropdown.addItems(sorted(layer_groups))
-
 
     def select_by_location(self):
         # Get the layer named with the suffix '_road', '_block', '_river'
