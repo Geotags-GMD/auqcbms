@@ -2,8 +2,9 @@ import os
 import json
 from qgis.PyQt.QtWidgets import QAction, QToolBar
 from qgis.PyQt.QtGui import QIcon
-from .gui.packager_dialog import AuQCBMSDialog
+from .gui.package_dialog import PackageDialog
 from .gui.validator_dialog import ValidatorDialog
+from qgis.core import QgsProject
 
 class AuQCBMS:
     def __init__(self, iface):
@@ -38,7 +39,7 @@ class AuQCBMS:
 
     def run(self):
         if not self.dialog:
-            self.dialog = AuQCBMSDialog()
+            self.dialog = PackageDialog(self.iface, QgsProject.instance(), False)
         self.dialog.show()
         self.dialog.exec_()
 
