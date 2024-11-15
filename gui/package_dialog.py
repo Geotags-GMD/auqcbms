@@ -26,11 +26,10 @@ from qgis.PyQt.QtCore import QDir, Qt, QUrl
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QApplication, QDialog, QDialogButtonBox, QMessageBox
 from qgis.PyQt.uic import loadUiType
-
-from qfieldsync.core.preferences import Preferences
-from qfieldsync.gui.checker_feedback_table import CheckerFeedbackTable
-from qfieldsync.gui.dirs_to_copy_widget import DirsToCopyWidget
-from qfieldsync.gui.project_configuration_dialog import ProjectConfigurationDialog
+from .checker_feedback_table import CheckerFeedbackTable
+from ..core.preferences import Preferences
+from .dirs_to_copy_widget import DirsToCopyWidget
+from .project_configuration_dialog import ProjectConfigurationDialog
 import processing
 from ..utils.qt_utils import make_folder_selector
 
