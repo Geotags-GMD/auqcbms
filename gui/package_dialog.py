@@ -2,7 +2,8 @@ import os
 
 from libqfieldsync.layer import LayerSource
 from libqfieldsync.offline_converter import ExportType, OfflineConverter
-
+import sys
+from qgis import utils
 # TODO this try/catch was added due to module structure changes in QFS 4.8.0. Remove this as enough time has passed since March 2024.
 try:
     from libqfieldsync.offliners import QgisCoreOffliner
@@ -21,7 +22,7 @@ from libqfieldsync.project import ProjectConfiguration
 from libqfieldsync.project_checker import ProjectChecker
 from libqfieldsync.utils.file_utils import fileparts
 from libqfieldsync.utils.qgis import get_project_title
-from qgis.core import Qgis, QgsApplication, QgsProject, QgsLayerTreeGroup,QgsLayerTreeLayer
+from qgis.core import Qgis, QgsApplication, QgsProject, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsVectorLayer, QgsRasterLayer
 from qgis.PyQt.QtCore import QDir, Qt, QUrl
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QApplication, QDialog, QDialogButtonBox, QMessageBox
@@ -51,33 +52,30 @@ class PackageDialog(QDialog, DialogUi):
         self.dirsToCopyWidget = DirsToCopyWidget()
         self.__project_configuration = ProjectConfiguration(self.project)
         self.run_button.clicked.connect(self.run)
+        self.group_dropdown.currentIndexChanged.connect(self.populate_layers_dropdown)
+        self.layer_dropdown.currentIndexChanged.connect(self.populate_geocode_dropdown)
         self.project_lbl.setText(get_project_title(self.project))
-        self.layer_group_dropdown.currentIndexChanged.connect(self.reset_filter_on_layer_group_change)
         self.button_box.button(QDialogButtonBox.Save).setText(self.tr("Export"))
         self.button_box.button(QDialogButtonBox.Save).clicked.connect(
             self.package_project
         )
-        # self.button_box.button(QDialogButtonBox.Reset).setText(
-        #     self.tr("Configure current project...")
-        # )
-        # self.button_box.button(QDialogButtonBox.Reset).setIcon(
-        #     QIcon(
-        #         os.path.join(
-        #             os.path.dirname(__file__), "../resources/project_properties.svg"
-        #         )
-        #     )
-        # )
-        # self.button_box.button(QDialogButtonBox.Reset).clicked.connect(
-        #     self.show_settings
-        # )
+        self.button_box.button(QDialogButtonBox.Reset).clicked.connect(
+            self.reset_filter
+        )
 
         self.devices = None
         self.project_checker = ProjectChecker(QgsProject.instance())
         # self.refresh_devices()
         self.setup_gui()
-        self.update_geocode_dropdown()
+
+         # Initialize variables
+        self.layers = {}
+
+        # Load groups on dialog initialization
+        self.load_layer_groups()
 
         self.offliner.warning.connect(self.show_warning)
+
 
     def update_progress(self, sent, total):
         progress = float(sent) / total * 100
@@ -119,8 +117,6 @@ class PackageDialog(QDialog, DialogUi):
             self.nextButton.setEnabled(not has_errors)
         else:
             self.show_package_page()
-
-        self.load_json_and_layers()
 
     def get_export_folder_from_dialog(self):
         """Get the export folder according to the inputs in the selected"""
@@ -189,9 +185,30 @@ class PackageDialog(QDialog, DialogUi):
         finally:
             QApplication.restoreOverrideCursor()
 
-        self.accept()
 
-        self.progress_group.setEnabled(False)
+        plugin_to_reload = "auqcbms"  # Replace with the name of the plugin you want to reload
+        self.reload_plugin(plugin_to_reload)
+        self.accept()
+        self.button_box.button(QDialogButtonBox.Save).setEnabled(True)
+
+        # Reset the dialog state after export
+        # self.reset_after_export()
+
+    def reset_after_export(self):
+        """Reset the dialog state to allow for a new export."""
+        self.button_box.button(QDialogButtonBox.Save).setEnabled(True)  # Re-enable the save button
+        self.progress_group.setEnabled(True)  # Re-enable the progress group
+        self.layer_dropdown.clear()  # Clear the layer dropdown
+        self.geocode_dropdown.clear()  # Clear the geocode dropdown
+        self.infoLocalizedLayersLabel.setVisible(False)  # Hide any info labels
+        self.infoLocalizedPresentLabel.setVisible(False)
+        self.infoGroupBox.setVisible(False)
+        self.layers = {}  # Clear the layers dictionary
+        self.update_info_visibility()  # Update visibility of info labels
+
+        # Repopulate the dropdowns after reset
+        self.populate_layers_dropdown()  # Ensure this method exists
+        self.populate_geocode_dropdown()  # Ensure this method exists
 
     def do_post_offline_convert_action(self, is_success):
         """
@@ -277,101 +294,124 @@ class PackageDialog(QDialog, DialogUi):
 
     # Custom code
     def run(self):
-        selected_geocode = self.geocode_dropdown.currentText()
-        self.filter_layers(selected_geocode)
+        try:
+            # Get the selected layer and geocode
+            selected_layer = self.layer_dropdown.currentData()  # This should now be a QgsLayer object
+            selected_geocode = self.geocode_dropdown.currentText()
 
+            # Check if the selected layer is valid and has the correct suffix
+            if not isinstance(selected_layer, (QgsVectorLayer, QgsRasterLayer)):  # Check if selected_layer is a QgsLayer
+                QMessageBox.warning(self, "Selection Error", "Please select a valid layer.")
+                return
 
-    def filter_layers(self, selected_geocode):
-        # Check if selected_geocode is empty or None
-        if not selected_geocode:
-            QMessageBox.warning(self, "No Geocode Selected", "Please select a geocode before filtering layers.")
-            return  # Exit the method if no geocode is selected
+            if not selected_geocode:
+                QMessageBox.warning(self, "Selection Error", "Please select a valid geocode.")
+                return
 
-        print(f"Filtering layers with geocode: {selected_geocode}")
-        
-        # Check if 'bgy' layer is valid before using it
-        if 'bgy' in self.layers and self.layers['bgy'] is not None:
-            if self.layers['bgy'].isValid():  # Check if the layer is valid
-                self.layers['bgy'].setSubsetString(f"geocode = '{selected_geocode}'")
-            else:
-                QMessageBox.warning(self, "Layer Invalid", "The 'bgy' layer is no longer valid.")
+            # Debugging: Print the name of the selected layer
+            print(f"Selected layer: {selected_layer.name()}")
 
+            if not selected_layer.name().endswith('_bgy'):
+                QMessageBox.warning(self, "Layer Error", "The selected layer must have the suffix '_bgy'.")
+                return
+
+            # Load predefined layer mapping based on known suffix patterns
+            self.layers = {
+                layer.name(): layer for layer in QgsProject.instance().mapLayers().values()
+                if layer.name().endswith(('_bgy', '_ea2024', '_bldg_point'))
+            }
+
+            # Call the instance method to filter layers
+            self.filter_layers(self.layers, selected_geocode)
+
+        except Exception as e:
+            # Handle any unexpected exceptions
+            QMessageBox.critical(self, "Error", f"An unexpected error occurred: {str(e)}")
+            print(f"Exception: {e}")  # Print the exception for debugging
+
+    def reset_filter(self):
+        """Reset the layer and geocode selections and clear any applied filters."""
+        print("Resetting filters...")  # Debugging line
+        self.layer_dropdown.clear()  # Clear the layer dropdown
+        self.geocode_dropdown.clear()  # Clear the geocode dropdown
+        self.infoLocalizedLayersLabel.setVisible(False)  # Hide any info labels
+        self.infoLocalizedPresentLabel.setVisible(False)
+        self.infoGroupBox.setVisible(False)
+
+        # Reset filters on specific layers
+        for layer_key, layer in self.layers.items():
+            if layer and layer.isValid():  # Check if the layer is valid
+                # Check if the layer name ends with the specified suffixes
+                if layer.name().endswith(('_bgy', '_bldg_point', '_ea2024')):
+                    layer.setSubsetString("")  # Clear the subset string to reset the filter
+
+        # Optionally, repopulate the dropdowns if needed
+        self.populate_layers_dropdown()  # Ensure this method exists
+        self.populate_geocode_dropdown()  # Ensure this method exists
+
+    def filter_layers(self, layers, selected_geocode):
         first_8_digits = selected_geocode[:8]
 
-        # Check if 'ea2024' layer is valid before using it
-        if 'ea2024' in self.layers and self.layers['ea2024'] is not None:
-            if self.layers['ea2024'].isValid():  # Check if the layer is valid
-                self.layers['ea2024'].setSubsetString(f"geocode LIKE '{first_8_digits}%'")
+        # Loop through each layer in the dictionary and apply relevant filters
+        for layer_key, layer in layers.items():
+            if layer is not None and layer.isValid():
+                # Apply filters based on suffixes
+                if layer.name().endswith('_bgy'):
+                    layer.setSubsetString(f"geocode = '{selected_geocode}'")
+                elif layer.name().endswith('_ea2024'):
+                    layer.setSubsetString(f"geocode LIKE '{first_8_digits}%'")
+                elif layer.name().endswith('_bldg_point'):
+                    layer.setSubsetString(f"geocode LIKE '{first_8_digits}%'")
+                else:
+                    QMessageBox.warning(None, "Unsupported Layer", f"Layer '{layer.name()}' does not match any known suffixes.")
             else:
-                QMessageBox.warning(self, "Layer Invalid", "The 'ea2024' layer is no longer valid.")
+                QMessageBox.warning(None, "Layer Invalid", f"The layer '{layer_key}' is not valid or does not exist.")
 
-        # Check if 'bldg_point' layer is valid before using it
-        if 'bldg_point' in self.layers and self.layers['bldg_point'] is not None:
-            if self.layers['bldg_point'].isValid():  # Check if the layer is valid
-                self.layers['bldg_point'].setSubsetString(f"geocode LIKE '{first_8_digits}%'")
-            else:
-                QMessageBox.warning(self, "Layer Invalid", "The 'bldg_point' layer is no longer valid.")
-
-        # Check if 'river' layer is valid before using it
-        if 'river' in self.layers and self.layers['river'] is not None:
-            if self.layers['river'].isValid():  # Check if the layer is valid
-                self.layers['river'].setSubsetString(f"geocode LIKE '{first_8_digits}%'")
-            else:
-                QMessageBox.warning(self, "Layer Invalid", "The 'river' layer is no longer valid.")
-
-        # Call select_by_location only if a valid geocode is selected
+        # Call select_by_location after filtering layers
         self.select_by_location()
 
-    def reset_filter_on_layer_group_change(self):
-        self.geocode_dropdown.clear()
-        for layer in self.layers.values():
-            if layer is not None:
-                layer.setSubsetString("")
-        self.update_geocode_dropdown()
+    def load_layer_groups(self):
+        # Populate the group dropdown with layer groups in the project
+        self.group_dropdown.clear()
+        root = QgsProject.instance().layerTreeRoot()
+        groups = [child for child in root.children() if isinstance(child, QgsLayerTreeGroup)]
+        for group in groups:
+            self.group_dropdown.addItem(group.name(), group)
 
-    def update_geocode_dropdown(self):
-        self.geocode_dropdown.clear()
-
-        selected_group_name = self.layer_group_dropdown.currentText()
-        layer_group = QgsProject.instance().layerTreeRoot().findGroup(selected_group_name)
-
-        if not layer_group:
-            print(f"Layer group {selected_group_name} not found.")
+    def populate_layers_dropdown(self):
+        """Populate the layer dropdown based on the selected group."""
+        selected_group = self.group_dropdown.currentData()
+        if not isinstance(selected_group, QgsLayerTreeGroup):
             return
 
-        bgy_layer = None
-        for layer_item in layer_group.children():
-            if isinstance(layer_item, QgsLayerTreeLayer):
-                layer = layer_item.layer()
-                if layer and layer.name().endswith('_bgy'):
-                    bgy_layer = layer
-                    break
+        # Populate the layer dropdown with layers in the selected group
+        self.layer_dropdown.clear()
+        layers = [layer for layer in selected_group.findLayers()]
+        for layer in layers:
+            self.layer_dropdown.addItem(layer.name(), layer.layer())
 
-        if not bgy_layer or 'geocode' not in bgy_layer.fields().names():
-            print("The '_bgy' layer does not contain a 'geocode' field.")
-            return
+        # Clear geocode dropdown
+        self.geocode_dropdown.clear()
 
-        geocode_index = bgy_layer.fields().indexOf('geocode')
-        unique_geocodes = bgy_layer.uniqueValues(geocode_index)
-        sorted_geocodes = sorted(unique_geocodes, key=str)
-        if sorted_geocodes:
-            self.geocode_dropdown.addItems([str(gc) for gc in sorted_geocodes])
-            print(f"Loaded {len(sorted_geocodes)} unique geocodes from the '_bgy' layer.")
-        else:
-            print("No valid geocodes found in the '_bgy' layer.")
+        # Call to populate geocode dropdown if a layer is selected
+        if self.layer_dropdown.count() > 0:
+            self.populate_geocode_dropdown()
 
-    def load_json_and_layers(self):
-        layer_keywords = ['ea2024', 'bgy', 'bldg_point', 'block', 'landmark', 'road', 'river']
-        self.layers = {key: None for key in layer_keywords}
+    def populate_geocode_dropdown(self):
+        """Populate the geocode dropdown based on the selected layer."""
+        selected_layer = self.layer_dropdown.currentData()
+        self.geocode_dropdown.clear()
 
-        for layer in QgsProject.instance().mapLayers().values():
-            for keyword in layer_keywords:
-                if keyword in layer.name():
-                    self.layers[keyword] = layer
+        if selected_layer and selected_layer.name().endswith('_bgy'):
+            # Populate geocode dropdown with all unique geocodes from the layer
+            geocode_index = selected_layer.fields().indexOf('geocode')
+            if geocode_index != -1:
+                geocodes = selected_layer.uniqueValues(geocode_index)
+                self.geocode_dropdown.addItems(sorted(geocodes))
+                print(f"Geocode values loaded for layer: {selected_layer.name()}")
+            else:
+                print(f"No 'geocode' field found in layer: {selected_layer.name()}")
 
-        self.layer_group_dropdown.clear()
-        layer_groups = [layer.name() for layer in QgsProject.instance().layerTreeRoot().children() if isinstance(layer, QgsLayerTreeGroup)]
-        self.layer_group_dropdown.addItems(sorted(layer_groups))
 
     def select_by_location(self):
         # Get the layer named with the suffix '_road', '_block', '_river'
@@ -415,3 +455,44 @@ class PackageDialog(QDialog, DialogUi):
                     print(f"Number of selected features in {input_layer.name()}: {selected_count}")
         
         print("Selection by location completed.")
+
+    def reload_plugin(self, plugin_name):
+        """Reload a specified QGIS plugin."""
+        # Try to initially load the selected plugin if not loaded yet
+        if plugin_name not in utils.plugins:
+            try:
+                utils.loadPlugin(plugin_name)
+                utils.startPlugin(plugin_name)
+                utils.updateAvailablePlugins()
+                #QMessageBox.information(None, "Success", f"Plugin '{plugin_name}' loaded successfully.")
+            except Exception as e:
+                #QMessageBox.critical(None, "Error", f"Failed to load plugin '{plugin_name}': {str(e)}")
+                return
+        
+        try:
+            # Unload the plugin
+            utils.unloadPlugin(plugin_name)
+
+            # Remove submodules left by qgis.utils.unloadPlugin
+            for key in list(sys.modules.keys()):
+                if plugin_name in key:
+                    if hasattr(sys.modules[key], 'qCleanupResources'):
+                        sys.modules[key].qCleanupResources()
+                    del sys.modules[key]
+
+            # Reload the plugin
+            utils.loadPlugin(plugin_name)
+            utils.startPlugin(plugin_name)
+            #self.reset_filter()
+
+            #QMessageBox.information(None, "Success", f"Plugin '{plugin_name}' reloaded successfully.")
+
+        except Exception as e:
+            QMessageBox.critical(None, "Error", f"Failed to reload plugin '{plugin_name}': {str(e)}")
+
+
+
+
+    
+
+

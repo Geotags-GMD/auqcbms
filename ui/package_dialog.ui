@@ -124,12 +124,8 @@
           <string>Process</string>
          </property>
          <layout class="QGridLayout" name="gridLayout">
-          <item row="4" column="0">
-           <widget class="QLabel" name="label_3">
-            <property name="text">
-             <string>Select Bgy Geocode</string>
-            </property>
-           </widget>
+          <item row="3" column="0" colspan="2">
+           <widget class="QComboBox" name="group_dropdown"/>
           </item>
           <item row="1" column="1">
            <widget class="QToolButton" name="manualDir_btn">
@@ -141,10 +137,13 @@
           <item row="1" column="0">
            <widget class="QLineEdit" name="manualDir"/>
           </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="label">
+          <item row="6" column="0" colspan="2">
+           <widget class="QComboBox" name="geocode_dropdown"/>
+          </item>
+          <item row="4" column="0">
+           <widget class="QLabel" name="label_3">
             <property name="text">
-             <string>Select Base Layer</string>
+             <string>Select Bgy Geocode</string>
             </property>
            </widget>
           </item>
@@ -156,12 +155,16 @@
            </widget>
           </item>
           <item row="5" column="0" colspan="2">
-           <widget class="QComboBox" name="geocode_dropdown"/>
+           <widget class="QComboBox" name="layer_dropdown"/>
           </item>
-          <item row="3" column="0" colspan="2">
-           <widget class="QComboBox" name="layer_group_dropdown"/>
+          <item row="2" column="0">
+           <widget class="QLabel" name="label">
+            <property name="text">
+             <string>Select Base Layer</string>
+            </property>
+           </widget>
           </item>
-          <item row="6" column="0" colspan="2">
+          <item row="7" column="0" colspan="2">
            <widget class="QPushButton" name="run_button">
             <property name="text">
              <string>Run</string>
@@ -302,7 +305,7 @@
       <enum>Qt::Horizontal</enum>
      </property>
      <property name="standardButtons">
-      <set>QDialogButtonBox::Close|QDialogButtonBox::Save</set>
+      <set>QDialogButtonBox::Close|QDialogButtonBox::Reset|QDialogButtonBox::Save</set>
      </property>
     </widget>
    </item>
