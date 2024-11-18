@@ -1,3 +1,17 @@
+"""
+    PackageDialog class for exporting QGIS projects to QField.
+
+    Note: This plugin is designed to facilitate the export of QGIS projects to QField.
+    Plugin Name: AuQCBMS 
+    Plugin Version: 0.1
+    Copyright (C) 2024 GMDev Team. All rights reserved.
+
+    ------------------------------------------
+
+    Modified Version: QField 4.11.0
+    Copyright (C) 2024 QField Team.
+"""
+
 import os
 
 from libqfieldsync.layer import LayerSource
@@ -13,9 +27,9 @@ except ModuleNotFoundError:
 
     QMessageBox.warning(
         None,
-        QCoreApplication.translate("QFieldSync", "Please restart QGIS"),
+        QCoreApplication.translate("AuQCBMS", "Please restart QGIS"),
         QCoreApplication.translate(
-            "QFieldSync", "To finalize the QFieldSync upgrade, please restart QGIS."
+            "AuQCBMS", "To finalize the AuQCBMS upgrade, please restart QGIS."
         ),
     )
 from libqfieldsync.project import ProjectConfiguration
@@ -185,30 +199,27 @@ class PackageDialog(QDialog, DialogUi):
         finally:
             QApplication.restoreOverrideCursor()
 
-
-        plugin_to_reload = "auqcbms"  # Replace with the name of the plugin you want to reload
+        plugin_to_reload = "auqcbms"  # reload the plugin
         self.reload_plugin(plugin_to_reload)
+        QMessageBox.information(self, "Export Successful", "The project has been exported successfully.")
         self.accept()
-        self.button_box.button(QDialogButtonBox.Save).setEnabled(True)
+        
 
-        # Reset the dialog state after export
-        # self.reset_after_export()
+    # def reset_after_export(self):
+    #     """Reset the dialog state to allow for a new export."""
+    #     self.button_box.button(QDialogButtonBox.Save).setEnabled(True)  # Re-enable the save button
+    #     self.progress_group.setEnabled(True)  # Re-enable the progress group
+    #     self.layer_dropdown.clear()  # Clear the layer dropdown
+    #     self.geocode_dropdown.clear()  # Clear the geocode dropdown
+    #     self.infoLocalizedLayersLabel.setVisible(False)  # Hide any info labels
+    #     self.infoLocalizedPresentLabel.setVisible(False)
+    #     self.infoGroupBox.setVisible(False)
+    #     self.layers = {}  # Clear the layers dictionary
+    #     self.update_info_visibility()  # Update visibility of info labels
 
-    def reset_after_export(self):
-        """Reset the dialog state to allow for a new export."""
-        self.button_box.button(QDialogButtonBox.Save).setEnabled(True)  # Re-enable the save button
-        self.progress_group.setEnabled(True)  # Re-enable the progress group
-        self.layer_dropdown.clear()  # Clear the layer dropdown
-        self.geocode_dropdown.clear()  # Clear the geocode dropdown
-        self.infoLocalizedLayersLabel.setVisible(False)  # Hide any info labels
-        self.infoLocalizedPresentLabel.setVisible(False)
-        self.infoGroupBox.setVisible(False)
-        self.layers = {}  # Clear the layers dictionary
-        self.update_info_visibility()  # Update visibility of info labels
-
-        # Repopulate the dropdowns after reset
-        self.populate_layers_dropdown()  # Ensure this method exists
-        self.populate_geocode_dropdown()  # Ensure this method exists
+    #     # Repopulate the dropdowns after reset
+    #     self.populate_layers_dropdown()  # Ensure this method exists
+    #     self.populate_geocode_dropdown()  # Ensure this method exists
 
     def do_post_offline_convert_action(self, is_success):
         """
@@ -234,6 +245,7 @@ class PackageDialog(QDialog, DialogUi):
             status = Qgis.Warning
 
         self.iface.messageBar().pushMessage(result_message, status, 0)
+
 
     def update_info_visibility(self):
         """
@@ -348,6 +360,7 @@ class PackageDialog(QDialog, DialogUi):
         # Optionally, repopulate the dropdowns if needed
         self.populate_layers_dropdown()  # Ensure this method exists
         self.populate_geocode_dropdown()  # Ensure this method exists
+        self.button_box.button(QDialogButtonBox.Save).setEnabled(True)
 
     def filter_layers(self, layers, selected_geocode):
         first_8_digits = selected_geocode[:8]
@@ -464,9 +477,9 @@ class PackageDialog(QDialog, DialogUi):
                 utils.loadPlugin(plugin_name)
                 utils.startPlugin(plugin_name)
                 utils.updateAvailablePlugins()
-                #QMessageBox.information(None, "Success", f"Plugin '{plugin_name}' loaded successfully.")
+                print(f"Plugin '{plugin_name}' loaded successfully.")
             except Exception as e:
-                #QMessageBox.critical(None, "Error", f"Failed to load plugin '{plugin_name}': {str(e)}")
+                print(f"Failed to load plugin '{plugin_name}': {str(e)}")
                 return
         
         try:
@@ -484,10 +497,10 @@ class PackageDialog(QDialog, DialogUi):
             utils.loadPlugin(plugin_name)
             utils.startPlugin(plugin_name)
             #self.reset_filter()
-
-            #QMessageBox.information(None, "Success", f"Plugin '{plugin_name}' reloaded successfully.")
+            print(f"Plugin '{plugin_name}' reloaded successfully.")
 
         except Exception as e:
+            print(f"Failed to reload plugin '{plugin_name}': {str(e)}")
             QMessageBox.critical(None, "Error", f"Failed to reload plugin '{plugin_name}': {str(e)}")
 
 
