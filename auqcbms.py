@@ -3,7 +3,7 @@ import json
 from qgis.PyQt.QtWidgets import QAction, QToolBar
 from qgis.PyQt.QtGui import QIcon
 from .gui.package_dialog import PackageDialog
-from .gui.validator_dialog import ValidatorDialog
+from .gui.loader_dialog import LayerLoaderDialog
 from qgis.core import QgsProject
 
 class AuQCBMS:
@@ -45,7 +45,7 @@ class AuQCBMS:
 
     def run_validator(self):
         if not self.validator_dialog:
-            self.validator_dialog = ValidatorDialog()
+            self.validator_dialog = LayerLoaderDialog(self.iface)
         self.validator_dialog.show()
         self.validator_dialog.exec_()
 

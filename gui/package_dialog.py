@@ -90,6 +90,8 @@ class PackageDialog(QDialog, DialogUi):
 
         self.offliner.warning.connect(self.show_warning)
 
+        
+
 
     def update_progress(self, sent, total):
         progress = float(sent) / total * 100
@@ -199,9 +201,8 @@ class PackageDialog(QDialog, DialogUi):
         finally:
             QApplication.restoreOverrideCursor()
 
-        plugin_to_reload = "auqcbms"  # reload the plugin
-        self.reload_plugin(plugin_to_reload)
         QMessageBox.information(self, "Export Successful", "The project has been exported successfully.")
+        self.reload_plugin("auqcbms")
         self.accept()
         
 
@@ -330,8 +331,23 @@ class PackageDialog(QDialog, DialogUi):
             # Load predefined layer mapping based on known suffix patterns
             self.layers = {
                 layer.name(): layer for layer in QgsProject.instance().mapLayers().values()
-                if layer.name().endswith(('_bgy', '_ea2024', '_bldg_point'))
+                if layer.name().endswith(('_bgy', '_ea2024', '_bldg_point', '_block','_ea'))
             }
+
+            # New code to rename layers with suffix 'pppmmbbb' in groups containing 'Form 8'
+            root = QgsProject.instance().layerTreeRoot()
+            groups = [child for child in root.children() if isinstance(child, QgsLayerTreeGroup)]
+            for group in groups:
+                if 'Form 8' in group.name():
+                    for layer in group.findLayers():
+                        if layer.layer().name().endswith('_SF'):
+                            new_name = f"{selected_geocode[:8]}_SF"
+                            layer.layer().setName(new_name)
+                            print(f"Renamed layer '{layer.layer().name()}' to '{new_name}'")
+                        elif layer.layer().name().endswith('_GP'):
+                            new_name = f"{selected_geocode[:8]}_GP"
+                            layer.layer().setName(new_name)
+                            print(f"Renamed layer '{layer.layer().name()}' to '{new_name}'")
 
             # Call the instance method to filter layers
             self.filter_layers(self.layers, selected_geocode)
@@ -354,7 +370,7 @@ class PackageDialog(QDialog, DialogUi):
         for layer_key, layer in self.layers.items():
             if layer and layer.isValid():  # Check if the layer is valid
                 # Check if the layer name ends with the specified suffixes
-                if layer.name().endswith(('_bgy', '_bldg_point', '_ea2024')):
+                if layer.name().endswith(('_bgy', '_bldg_point', '_ea2024','_block','_ea')):
                     layer.setSubsetString("")  # Clear the subset string to reset the filter
 
         # Optionally, repopulate the dropdowns if needed
@@ -371,9 +387,11 @@ class PackageDialog(QDialog, DialogUi):
                 # Apply filters based on suffixes
                 if layer.name().endswith('_bgy'):
                     layer.setSubsetString(f"geocode = '{selected_geocode}'")
-                elif layer.name().endswith('_ea2024'):
+                elif layer.name().endswith(('_ea2024', '_ea')):
                     layer.setSubsetString(f"geocode LIKE '{first_8_digits}%'")
                 elif layer.name().endswith('_bldg_point'):
+                    layer.setSubsetString(f"geocode LIKE '{first_8_digits}%'")
+                elif layer.name().endswith('_block'):
                     layer.setSubsetString(f"geocode LIKE '{first_8_digits}%'")
                 else:
                     QMessageBox.warning(None, "Unsupported Layer", f"Layer '{layer.name()}' does not match any known suffixes.")
@@ -496,7 +514,6 @@ class PackageDialog(QDialog, DialogUi):
             # Reload the plugin
             utils.loadPlugin(plugin_name)
             utils.startPlugin(plugin_name)
-            #self.reset_filter()
             print(f"Plugin '{plugin_name}' reloaded successfully.")
 
         except Exception as e:
