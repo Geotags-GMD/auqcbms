@@ -1,5 +1,6 @@
 <RCC>
-    <qresource prefix="/plugins/auqcbms_f2" >
-        <file>icon.png</file>
+    <qresource prefix="/plugins/auqcbms">
+        <file>resources/packager.svg</file>
+        <file>resources/validator.svg</file>
     </qresource>
 </RCC>

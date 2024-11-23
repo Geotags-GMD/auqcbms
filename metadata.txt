@@ -1,14 +1,22 @@
-# This file contains metadata for your plugin.
+# PackageDialog class for exporting QGIS projects to QField.
 
-# This file should be included when you package your plugin.# Mandatory items:
+# Note: This plugin is designed to facilitate the export of QGIS projects to QField.
+# Plugin Name: AuQCBMS 
+# Plugin Version: 0.1
+# Copyright (C) 2024 GMDev Team. All rights reserved.
+    
+
+# Modified Version: QField 4.11.0
+# Copyright (C) 2024 QField Team.
+
 
 [general]
-name=AuQCBMSF2
-qgisMinimumVersion=3.0
-description=AuQCBMSF2
+name=AuQCBMS
+qgisMinimumVersion=3.28.15
+description=AuQCBMS
 version=0.1
 author=PSA
-email=test@gmail.com
+email=kedeleon.psagmd@gmail.com
 
 about=Provide a brief description of the plugin and its purpose.
 

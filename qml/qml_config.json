@@ -1,0 +1,18 @@
+{
+  "qml_files": {
+    "bgy": "7. 2024 POPCEN-CBMS Barangay.qml",
+    "ea2024": "6. 2024 POPCEN-CBMS EA.qml",
+    "ea": "6. 2024 POPCEN-CBMS EA.qml",
+    "block2024": "5. 2024 POPCEN-CBMS Block.qml",
+    "block": "5. 2024 POPCEN-CBMS Block.qml",
+    "landmark": "10. 2024 POPCEN-CBMS Landmark.qml",
+    "road": "8. 2024 POPCEN-CBMS Road.qml",
+    "river": "9. 2024 POPCEN-CBMS River.qml",
+    "bldg_point": "4. 2024 POPCEN-CBMS Building Points.qml"
+  },
+  "CBMS_Form_8": [
+    "2. 2024 POPCEN-CBMS Form 8A.qml",
+    "3. 2024 POPCEN-CBMS Form 8B.qml"
+  ],
+  "layer_order": ["river", "road", "block", "ea2024", "bgy", "landmark", "bldg_point"]
+}
