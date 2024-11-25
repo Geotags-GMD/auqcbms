@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>326</width>
-    <height>392</height>
+    <height>344</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -54,7 +54,7 @@
     <item>
      <widget class="QLabel" name="folder_label">
       <property name="text">
-       <string>Select GPKG</string>
+       <string>Select GPKG Folder</string>
       </property>
      </widget>
     </item>
@@ -67,7 +67,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>290</y>
+     <y>270</y>
      <width>301</width>
      <height>31</height>
     </rect>
@@ -94,7 +94,11 @@
      </widget>
     </item>
     <item>
-     <widget class="QgsFileWidget" name="select_qml_folder_button"/>
+     <widget class="QgsFileWidget" name="select_rasterlayer">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+     </widget>
     </item>
    </layout>
   </widget>
@@ -102,7 +106,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>360</y>
+     <y>310</y>
      <width>75</width>
      <height>23</height>
     </rect>
@@ -110,28 +114,6 @@
    <property name="text">
     <string>Update</string>
    </property>
-  </widget>
-  <widget class="QWidget" name="verticalLayoutWidget_3">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>190</y>
-     <width>301</width>
-     <height>41</height>
-    </rect>
-   </property>
-   <layout class="QVBoxLayout" name="verticalLayout_3">
-    <item>
-     <widget class="QLabel" name="label_3">
-      <property name="text">
-       <string>Select QML Folder</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QgsFileWidget" name="select_qml"/>
-    </item>
-   </layout>
   </widget>
   <widget class="QProgressBar" name="progress_bar">
    <property name="geometry">
@@ -145,6 +127,32 @@
    <property name="value">
     <number>0</number>
    </property>
+  </widget>
+  <widget class="QWidget" name="verticalLayoutWidget_4">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>190</y>
+     <width>301</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout_4">
+    <item>
+     <widget class="QLabel" name="label_4">
+      <property name="text">
+       <string>Select RefData Folder</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QgsFileWidget" name="select_refdata">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+   </layout>
   </widget>
  </widget>
  <customwidgets>

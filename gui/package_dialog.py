@@ -85,14 +85,14 @@ class PackageDialog(QDialog, DialogUi):
          # Initialize variables
         self.layers = {}
 
+        self.offliner.warning.connect(self.show_warning)
+
         # Load groups on dialog initialization
         self.load_layer_groups()
 
-        self.offliner.warning.connect(self.show_warning)
 
+    
         
-
-
     def update_progress(self, sent, total):
         progress = float(sent) / total * 100
         self.progress_bar.setValue(progress)
@@ -195,6 +195,19 @@ class PackageDialog(QDialog, DialogUi):
             QApplication.setOverrideCursor(Qt.WaitCursor)
             offline_convertor.convert()
             self.do_post_offline_convert_action(True)
+
+            # # Use the geocode folder for the new project file path
+            # new_project_file_path = os.path.join(geocode_folder, f"{selected_geocode}.qgs")
+
+            # # Check if the project file exists in the geocode folder
+            # if os.path.exists(new_project_file_path):
+            #     QMessageBox.warning(self, "File Exists", f"The project file '{new_project_file_path}' already exists.")
+            #     print(f"Error: The project file '{new_project_file_path}' already exists.")
+            # else:
+            #     # Save the current project to the new path
+            #     QgsProject.instance().write(new_project_file_path)
+            #     print(f"Project file saved to: {new_project_file_path}")
+
         except Exception as err:
             self.do_post_offline_convert_action(False)
             raise err
@@ -202,6 +215,7 @@ class PackageDialog(QDialog, DialogUi):
             QApplication.restoreOverrideCursor()
 
         QMessageBox.information(self, "Export Successful", "The project has been exported successfully.")
+
         self.reload_plugin("auqcbms")
         self.accept()
         
@@ -331,7 +345,7 @@ class PackageDialog(QDialog, DialogUi):
             # Load predefined layer mapping based on known suffix patterns
             self.layers = {
                 layer.name(): layer for layer in QgsProject.instance().mapLayers().values()
-                if layer.name().endswith(('_bgy', '_ea2024', '_bldg_point', '_block','_ea'))
+                if layer.name().endswith(('_bgy', '_ea2024', '_bldg_point', '_block','_ea','_bldgpts'))
             }
 
             # New code to rename layers with suffix 'pppmmbbb' in groups containing 'Form 8'
@@ -348,6 +362,46 @@ class PackageDialog(QDialog, DialogUi):
                             new_name = f"{selected_geocode[:8]}_GP"
                             layer.layer().setName(new_name)
                             print(f"Renamed layer '{layer.layer().name()}' to '{new_name}'")
+
+                # New code for the "Base Layers" group
+                elif 'Base Layers' in group.name():  # Check for "Base Layers" group
+                    for layer in group.findLayers():
+                        if layer.layer().name().endswith('_bgy'):
+                            new_name = f"{selected_geocode[:8]}_bgy"
+                            layer.layer().setName(new_name)
+                            print(f"Renamed base layer '{layer.layer().name()}' to '{new_name}'")
+                        elif layer.layer().name().endswith('_ea2024'):
+                            new_name = f"{selected_geocode[:8]}_ea"
+                            layer.layer().setName(new_name)
+                            print(f"Renamed base layer '{layer.layer().name()}' to '{new_name}'")
+                        elif layer.layer().name().endswith('_ea'):
+                            new_name = f"{selected_geocode[:8]}_ea"
+                            layer.layer().setName(new_name)
+                            print(f"Renamed base layer '{layer.layer().name()}' to '{new_name}'")
+                        elif layer.layer().name().endswith('_bldgpts'):
+                            new_name = f"{selected_geocode[:8]}_bldgpts"
+                            layer.layer().setName(new_name)
+                            print(f"Renamed base layer '{layer.layer().name()}' to '{new_name}'")
+                        elif layer.layer().name().endswith('_bldg_point'):
+                            new_name = f"{selected_geocode[:8]}_bldgpts"
+                            layer.layer().setName(new_name)
+                            print(f"Renamed base layer '{layer.layer().name()}' to '{new_name}'")
+                        elif layer.layer().name().endswith('_bldg_points'):
+                            new_name = f"{selected_geocode[:8]}_bldgpts"
+                            layer.layer().setName(new_name)
+                            print(f"Renamed base layer '{layer.layer().name()}' to '{new_name}'")
+                        elif layer.layer().name().endswith('_landmark'):
+                            new_name = f"{selected_geocode[:8]}_landmark"
+                            layer.layer().setName(new_name)
+                            print(f"Renamed base layer '{layer.layer().name()}' to '{new_name}'")
+                        elif layer.layer().name().endswith('_road'):
+                            new_name = f"{selected_geocode[:8]}_road"
+                            layer.layer().setName(new_name)
+                            print(f"Renamed base layer '{layer.layer().name()}' to '{new_name}'")
+                        elif layer.layer().name().endswith('_river'):
+                            new_name = f"{selected_geocode[:8]}_river"
+                            layer.layer().setName(new_name)
+                            print(f"Renamed base layer '{layer.layer().name()}' to '{new_name}'")
 
             # Call the instance method to filter layers
             self.filter_layers(self.layers, selected_geocode)
@@ -370,7 +424,7 @@ class PackageDialog(QDialog, DialogUi):
         for layer_key, layer in self.layers.items():
             if layer and layer.isValid():  # Check if the layer is valid
                 # Check if the layer name ends with the specified suffixes
-                if layer.name().endswith(('_bgy', '_bldg_point', '_ea2024','_block','_ea')):
+                if layer.name().endswith(('_bgy', '_bldg_point', '_ea2024','_block','_ea','_bldgpts')):
                     layer.setSubsetString("")  # Clear the subset string to reset the filter
 
         # Optionally, repopulate the dropdowns if needed
@@ -388,6 +442,8 @@ class PackageDialog(QDialog, DialogUi):
                 if layer.name().endswith('_bgy'):
                     layer.setSubsetString(f"geocode = '{selected_geocode}'")
                 elif layer.name().endswith(('_ea2024', '_ea')):
+                    layer.setSubsetString(f"geocode LIKE '{first_8_digits}%'")
+                elif layer.name().endswith('_bldgpts'):
                     layer.setSubsetString(f"geocode LIKE '{first_8_digits}%'")
                 elif layer.name().endswith('_bldg_point'):
                     layer.setSubsetString(f"geocode LIKE '{first_8_digits}%'")

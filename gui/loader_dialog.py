@@ -36,10 +36,19 @@ class LayerLoaderDialog(QDialog,DialogUi):
         self.select_baselayer.setDialogTitle("Select Export Directory")
         # self.select_baselayer.fileChanged.connect(self.select_folder)  
 
-        # Set up QgsFileWidget for QML folder selection
-        self.select_qml.setStorageMode(QgsFileWidget.StorageMode.GetDirectory)
-        self.select_qml.setDialogTitle("Select QML Folder")
-        self.select_qml.fileChanged.connect(self.select_qml_folder)  
+        # # Set up QgsFileWidget for QML folder selection
+        # self.select_qml.setStorageMode(QgsFileWidget.StorageMode.GetDirectory)
+        # self.select_qml.setDialogTitle("Select QML Folder")
+        # self.select_qml.fileChanged.connect(self.select_qml_folder)  
+
+        # Set up QgsFileWidget for reference data folder selection
+        self.select_refdata.setStorageMode(QgsFileWidget.StorageMode.GetDirectory)
+        self.select_refdata.setDialogTitle("Select Reference Data Folder")
+        self.select_refdata.fileChanged.connect(self.select_refdata_folder)  # Connect to the new method
+
+        # Set up QgsFileWidget for raster layer selection
+        self.select_rasterlayer.setStorageMode(QgsFileWidget.StorageMode.GetFile)  # Set to select a file
+        self.select_rasterlayer.setDialogTitle("Select Raster Layer")  # Set dialog title
 
         self.run_button.clicked.connect(self.run_loading_process)
 
@@ -67,7 +76,14 @@ class LayerLoaderDialog(QDialog,DialogUi):
             self.sf_qml_file = os.path.join(self.qml_folder, "2. 2024 POPCEN-CBMS Form 8A.qml")
             self.gp_qml_file = os.path.join(self.qml_folder, "3. 2024 POPCEN-CBMS Form 8B.qml")
 
- 
+    def select_refdata_folder(self):
+        """Handle the selection of the reference data folder."""
+        self.refdata_folder = self.select_refdata.filePath()  # Get the selected refdata folder from QgsFileWidget
+        if self.refdata_folder:
+            print(f"Selected Reference Data Folder: {self.refdata_folder}")  # Log the selected folder
+        else:
+            print("No reference data folder selected.")
+
     def run_loading_process(self):
         """Load layers from the selected folder and apply QML styles if layers are loaded."""
         self.selected_folder = self.select_baselayer.filePath()  # Get the selected folder from QgsFileWidget
@@ -80,7 +96,7 @@ class LayerLoaderDialog(QDialog,DialogUi):
             QMessageBox.critical(self, "Error", "Selected folder does not exist.")
             return
 
-        sf_layer, gp_layer, csv_layers, raster_layers = self.load_layers_from_folder(self.selected_folder)
+        sf_layer, gp_layer, csv_layers, _ = self.load_layers_from_folder(self.selected_folder)
         self.sf_layer = sf_layer  # Store reference to SF layer
         self.gp_layer = gp_layer  # Store reference to GP layer
 
@@ -119,27 +135,25 @@ class LayerLoaderDialog(QDialog,DialogUi):
         base_layers_group.setExpanded(True)
 
         # Load layers from the specified GeoPackage
-        # self.load_layers_from_geopackage(base_layers_group, os.path.join(self.selected_folder, "01001_maplayers.gpkg"))
-          # Dynamically find GeoPackage files with _maplayers or _2024maplayers in their names
         gpkg_files = [f for f in os.listdir(self.selected_folder) if f.endswith('.gpkg') and ('_maplayers' in f or '_2024maplayers' in f)]
         if gpkg_files:
             self.load_layers_from_geopackage(base_layers_group, os.path.join(self.selected_folder, gpkg_files[0]))  # Load the first matching file
         else:
             QMessageBox.warning(self, "Warning", "No GeoPackage files found with the specified patterns.")
 
-        self.progress_bar.setValue(90)  # Update progress
-
-        # Load raster layers with 8-digit identifiers
-        for raster_layer in raster_layers:
+        # Load the raster layer from the selected file
+        raster_file = self.select_rasterlayer.filePath()  # Get the selected raster file path
+        if raster_file and os.path.exists(raster_file):
+            raster_layer = QgsRasterLayer(raster_file, os.path.basename(raster_file))  # Create raster layer
             if raster_layer.isValid():
-                # Add to the Base Layers group first
-                base_layers_group.addLayer(raster_layer)  
-                project.addMapLayer(raster_layer, False)  # Add to the project (root)
-
+                project.addMapLayer(raster_layer, False)  # Add to project without adding to the map
+                root.addLayer(raster_layer)  # Add to the root, next to the base layers group
             else:
-                print(f"Raster layer {raster_layer.name()} is not valid.")  # Log invalid layers
+                QMessageBox.critical(self, "Error", "Raster layer failed to load!")
+        else:
+            QMessageBox.warning(self, "Warning", "Please select a valid raster file.")
 
-        self.progress_bar.setValue(70)  # Update progress
+        self.progress_bar.setValue(90)  # Update progress
 
         # Create a new group called "Value Relation"
         value_relation_group = root.addGroup("Value Relation")
@@ -153,6 +167,22 @@ class LayerLoaderDialog(QDialog,DialogUi):
         # Optionally, expand the group
         value_relation_group.setExpanded(True)
 
+        # Create a new group called "Reference Data"
+        reference_data_group = root.addGroup("Reference Data")
+        reference_data_group.setExpanded(True)  # Optionally expand the group
+
+        # Load CSV layers from the selected reference data folder
+        if hasattr(self, 'refdata_folder') and self.refdata_folder:
+            for file in os.listdir(self.refdata_folder):
+                if file.endswith("_RefData.csv"):
+                    csv_layer = QgsVectorLayer(f"file:///{os.path.join(self.refdata_folder, file)}?delimiter=,&encoding=UTF-8", os.path.splitext(file)[0], "delimitedtext")
+                    if csv_layer.isValid():
+                        project.addMapLayer(csv_layer, False)
+                        reference_data_group.addLayer(csv_layer)  # Add to the Reference Data group
+                        print(f"Loaded CSV layer from reference data: {file}")
+                    else:
+                        print(f"Failed to load CSV layer from: {file}")
+
         # Call the function to execute the renaming
         rename_layers()  # {{ edit_4 }}
 
@@ -160,19 +190,8 @@ class LayerLoaderDialog(QDialog,DialogUi):
         self.progress_bar.setValue(100)  # Update progress
         QMessageBox.information(self, "Success", "Layers imported and organized successfully!")
 
-        # After loading layers, apply QML styles if the layers are valid
-        if self.sf_layer and self.sf_layer.isValid() and os.path.exists(self.sf_qml_file):
-            self.sf_layer.loadNamedStyle(self.sf_qml_file)
-            self.sf_layer.triggerRepaint()  # Refresh the layer to apply the style
-            print(f"Applied QML style to SF layer: {self.sf_layer.name()}")  # {{ edit_1 }}
-
-        if self.gp_layer and self.gp_layer.isValid() and os.path.exists(self.gp_qml_file):
-            self.gp_layer.loadNamedStyle(self.gp_qml_file)
-            self.gp_layer.triggerRepaint()  # Refresh the layer to apply the style
-            print(f"Applied QML style to GP layer: {self.gp_layer.name()}")  # {{ edit_2 }}
-
         # Change data source for the loaded layers
-        for layer in [self.sf_layer, self.gp_layer] + csv_layers + raster_layers:
+        for layer in [self.sf_layer, self.gp_layer] + csv_layers:
             if layer and layer.isValid():
                 # Update the data source to the new path
                 new_source = layer.source()  # Get the current source
@@ -204,7 +223,6 @@ class LayerLoaderDialog(QDialog,DialogUi):
         sf_layer = None
         gp_layer = None
         csv_layers = []
-        raster_layers = []
 
         # Regular expression to match 8-digit identifiers
         eight_digit_pattern = re.compile(r'^\d{8}\.gpkg$')
@@ -273,26 +291,28 @@ class LayerLoaderDialog(QDialog,DialogUi):
                     # Set the data source without encoding since it's already specified in the URI
                     csv_layer.setDataSource(new_csv_path, os.path.splitext(file)[0], "ogr")  # {{ edit_2 }}
                     print(f"Copied CSV file to: {new_csv_path}")  # Log the action
-            elif eight_digit_pattern.match(file):
-                # Load GeoPackage raster layers
-                raster_layer = QgsRasterLayer(file_path, os.path.splitext(file)[0])
-                if raster_layer.isValid():
-                    raster_layers.append(raster_layer)
-                else:
-                    print(f"Raster layer {file} failed to load!")
 
-        return sf_layer, gp_layer, csv_layers, raster_layers
+        return sf_layer, gp_layer, csv_layers, None  # Add a placeholder for the fourth value
 
 # Function to check and rename layers based on specified suffixes
 def rename_layers():
     # Define the suffixes to check for and their corresponding new names
     suffixes_to_rename = {
         'bgy': 'bgy',
+        'ea2024': 'ea',
         'ea': 'ea',
-        'bldg_point':'bldg_point',
-        'landmark':'landmark',
-        'river':'river',
-        'block':'block',
+        'bldg': 'bldgpts',
+        'bldg_points' : 'bldgpts',
+        'landmark': 'landmark',
+        'road': 'road',
+        'road_updated': 'road',
+        'updated_road' : 'road',
+        'updated_river' : 'river',
+        'river': 'river',
+        'river_updated' : 'river',
+        'block': 'block',
+        'Block': 'block',
+        'block2024': 'block',
     }
 
     # Get all layers in the project
