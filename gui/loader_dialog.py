@@ -34,12 +34,6 @@ class LayerLoaderDialog(QDialog,DialogUi):
         # Set up QgsFileWidget for base layer selection
         self.select_baselayer.setStorageMode(QgsFileWidget.StorageMode.GetDirectory)
         self.select_baselayer.setDialogTitle("Select Export Directory")
-        # self.select_baselayer.fileChanged.connect(self.select_folder)  
-
-        # # Set up QgsFileWidget for QML folder selection
-        # self.select_qml.setStorageMode(QgsFileWidget.StorageMode.GetDirectory)
-        # self.select_qml.setDialogTitle("Select QML Folder")
-        # self.select_qml.fileChanged.connect(self.select_qml_folder)  
 
         # Set up QgsFileWidget for reference data folder selection
         self.select_refdata.setStorageMode(QgsFileWidget.StorageMode.GetDirectory)
@@ -60,13 +54,6 @@ class LayerLoaderDialog(QDialog,DialogUi):
         self.sf_qml_file = ""  # Store the path for SF QML
         self.gp_qml_file = ""  # Store the path for GP QML
 
-    # def select_folder(self):
-    #     """Handle the selection of the export directory."""
-    #     self.selected_folder = self.select_baselayer.filePath()  # Get the selected folder from QgsFileWidget
-    #     if self.selected_folder:
-    #         self.folder_label.setText(f"Selected Folder: {self.selected_folder}")
-    #     else:
-    #         self.folder_label.setText("No folder selected.")
 
     def select_qml_folder(self):
         """Handle the selection of the QML folder."""
@@ -175,7 +162,11 @@ class LayerLoaderDialog(QDialog,DialogUi):
         if hasattr(self, 'refdata_folder') and self.refdata_folder:
             for file in os.listdir(self.refdata_folder):
                 if file.endswith("_RefData.csv"):
-                    csv_layer = QgsVectorLayer(f"file:///{os.path.join(self.refdata_folder, file)}?delimiter=,&encoding=UTF-8", os.path.splitext(file)[0], "delimitedtext")
+                    csv_layer = QgsVectorLayer(
+                        f"file:///{os.path.join(self.refdata_folder, file)}?delimiter=,&encoding=UTF-8&type=csv&field=REF_ID:String",
+                        os.path.splitext(file)[0],
+                        "delimitedtext"
+                    )
                     if csv_layer.isValid():
                         project.addMapLayer(csv_layer, False)
                         reference_data_group.addLayer(csv_layer)  # Add to the Reference Data group
@@ -289,7 +280,7 @@ class LayerLoaderDialog(QDialog,DialogUi):
                     shutil.copy(file_path, new_csv_path)  # Copy the file
 
                     # Set the data source without encoding since it's already specified in the URI
-                    csv_layer.setDataSource(new_csv_path, os.path.splitext(file)[0], "ogr")  # {{ edit_2 }}
+                    csv_layer.setDataSource(new_csv_path, os.path.splitext(file)[0], "ogr")
                     print(f"Copied CSV file to: {new_csv_path}")  # Log the action
 
         return sf_layer, gp_layer, csv_layers, None  # Add a placeholder for the fourth value

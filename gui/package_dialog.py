@@ -345,8 +345,17 @@ class PackageDialog(QDialog, DialogUi):
             # Load predefined layer mapping based on known suffix patterns
             self.layers = {
                 layer.name(): layer for layer in QgsProject.instance().mapLayers().values()
-                if layer.name().endswith(('_bgy', '_ea2024', '_bldg_point', '_block','_ea','_bldgpts'))
+                if layer.name().endswith(('_bgy', '_ea2024', '_bldg_point', '_block','_ea','_bldgpts','_GP_RefData','_SF_RefData'))
             }
+
+             # New code to filter Reference Data layers
+            ref_data_layers = {
+                layer_key: layer for layer_key, layer in self.layers.items()
+                if layer.isValid() and 'Reference Data' in QgsProject.instance().layerTreeRoot().findLayer(layer.id()).parent().name()
+            }
+
+            # Call the filtering method for Reference Data layers
+            self.filter_ref_data_layers(ref_data_layers, selected_geocode)
 
             # New code to rename layers with suffix 'pppmmbbb' in groups containing 'Form 8'
             root = QgsProject.instance().layerTreeRoot()
@@ -424,7 +433,7 @@ class PackageDialog(QDialog, DialogUi):
         for layer_key, layer in self.layers.items():
             if layer and layer.isValid():  # Check if the layer is valid
                 # Check if the layer name ends with the specified suffixes
-                if layer.name().endswith(('_bgy', '_bldg_point', '_ea2024','_block','_ea','_bldgpts')):
+                if layer.name().endswith(('_bgy', '_bldg_point', '_ea2024','_block','_ea','_bldgpts','_GP_RefData','_SF_RefData')):
                     layer.setSubsetString("")  # Clear the subset string to reset the filter
 
         # Optionally, repopulate the dropdowns if needed
@@ -434,6 +443,8 @@ class PackageDialog(QDialog, DialogUi):
 
     def filter_layers(self, layers, selected_geocode):
         first_8_digits = selected_geocode[:8]
+
+
 
         # Loop through each layer in the dictionary and apply relevant filters
         for layer_key, layer in layers.items():
@@ -449,6 +460,10 @@ class PackageDialog(QDialog, DialogUi):
                     layer.setSubsetString(f"geocode LIKE '{first_8_digits}%'")
                 elif layer.name().endswith('_block'):
                     layer.setSubsetString(f"geocode LIKE '{first_8_digits}%'")
+                elif layer.name().endswith('_GP_RefData'):
+                        layer.setSubsetString(f"ref_id LIKE '{first_8_digits}%'")
+                elif layer.name().endswith('_SF_RefData'):
+                        layer.setSubsetString(f"ref_id LIKE '{first_8_digits}%'")
                 else:
                     QMessageBox.warning(None, "Unsupported Layer", f"Layer '{layer.name()}' does not match any known suffixes.")
             else:
@@ -577,7 +592,24 @@ class PackageDialog(QDialog, DialogUi):
             QMessageBox.critical(None, "Error", f"Failed to reload plugin '{plugin_name}': {str(e)}")
 
 
+    def filter_ref_data_layers(self, layers, selected_geocode):
+        first_8_digits = selected_geocode[:8]
 
+        # Loop through each layer in the dictionary and apply relevant filters
+        for layer_key, layer in layers.items():
+            if layer is not None and layer.isValid():
+                # Get the QgsLayerTreeLayer for the current layer
+                layer_tree_layer = QgsProject.instance().layerTreeRoot().findLayer(layer.id())
+                
+                # Check if the layer belongs to the specific group for Reference Data
+                if layer_tree_layer and layer_tree_layer.parent() and 'Reference Data' in layer_tree_layer.parent().name():
+                    if layer.name().endswith('_GP_RefData'):
+                        layer.setSubsetString(f"ref_id LIKE '{first_8_digits}%'")
+                    elif layer.name().endswith('_SF_RefData'):
+                        layer.setSubsetString(f"ref_id LIKE '{first_8_digits}%'")
+                else:
+                    # Optionally, you can log or handle unsupported layers here
+                    print(f"Layer '{layer.name()}' is not part of the Reference Data group or does not match the suffix.")
 
     
 
