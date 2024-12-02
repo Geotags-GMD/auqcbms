@@ -51,7 +51,7 @@ def path_to_dict(path: PathLike, dirs_only: bool = False) -> DirectoryTreeDict:
             if dirs_only and not subpath.is_dir():
                 continue
 
-            if ".qfieldsync" in str(subpath):
+            if ".auqcbms" in str(subpath):
                 continue
 
             node["content"].append(path_to_dict(subpath, dirs_only=dirs_only))

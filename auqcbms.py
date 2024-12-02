@@ -19,7 +19,7 @@ class AuQCBMS:
     def initGui(self):
         # Initialize actions
         self.action = self.create_action("Packager", "resources/packager.svg", self.run)
-        self.validator_action = self.create_action("Validator", "resources/loader.svg", self.run_validator)
+        self.validator_action = self.create_action("Loader", "resources/loader.svg", self.run_validator)
         
         # Set up toolbar
         self.setup_toolbar()

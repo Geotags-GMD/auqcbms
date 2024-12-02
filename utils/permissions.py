@@ -1,4 +1,4 @@
-from qfieldsync.core.cloud_project import CloudProject
+from .core.cloud_project import CloudProject
 
 
 def can_change_project_owner(project: CloudProject) -> bool:

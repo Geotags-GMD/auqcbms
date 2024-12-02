@@ -2,7 +2,7 @@
 
 # Note: This plugin is designed to facilitate the export of QGIS projects to QField.
 # Plugin Name: AuQCBMS 
-# Plugin Version: 0.1
+# Plugin Version: 0.2
 # Copyright (C) 2024 GMDev Team. All rights reserved.
     
 
@@ -14,7 +14,7 @@
 name=AuQCBMS
 qgisMinimumVersion=3.28.15
 description=AuQCBMS
-version=0.1
+version=0.2
 author=PSA
 email=kedeleon.psagmd@gmail.com
 
