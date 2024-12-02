@@ -54,7 +54,7 @@
     <item>
      <widget class="QLabel" name="folder_label">
       <property name="text">
-       <string>Select GPKG Folder</string>
+       <string>Select Base Layer Folder</string>
       </property>
      </widget>
     </item>

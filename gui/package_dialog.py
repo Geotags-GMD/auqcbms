@@ -170,7 +170,7 @@ class PackageDialog(QDialog, DialogUi):
         self.dirsToCopyWidget.save_settings()
 
         # Create a directory based on the selected geocode
-        geocode_folder = os.path.join(export_folder, selected_geocode)
+        geocode_folder = os.path.join(export_folder, selected_geocode[:8])
         os.makedirs(geocode_folder, exist_ok=True)
 
         offline_convertor = OfflineConverter(
