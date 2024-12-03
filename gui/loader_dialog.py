@@ -155,7 +155,7 @@ class LayerLoaderDialog(QDialog,DialogUi):
         value_relation_group.setExpanded(True)
 
         # Create a new group called "Reference Data"
-        reference_data_group = root.addGroup("Reference Data")
+        reference_data_group = root.addGroup("SFGP_RefData")
         reference_data_group.setExpanded(True)  # Optionally expand the group
 
         # Load CSV layers from the selected reference data folder
@@ -290,11 +290,13 @@ def rename_layers():
     # Define the suffixes to check for and their corresponding new names
     suffixes_to_rename = {
         'bgy': 'bgy',
+        'brgy': 'bgy',
         'ea2024': 'ea',
         'ea': 'ea',
         'bldg': 'bldgpts',
         'bldg_points' : 'bldgpts',
         'landmark': 'landmark',
+        'landmarks': 'landmark',
         'road': 'road',
         'road_updated': 'road',
         'updated_road' : 'road',

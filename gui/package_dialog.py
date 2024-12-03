@@ -13,6 +13,7 @@
 """
 
 import os
+import shutil  # Add this import at the top of your file
 
 from libqfieldsync.layer import LayerSource
 from libqfieldsync.offline_converter import ExportType, OfflineConverter
@@ -90,8 +91,6 @@ class PackageDialog(QDialog, DialogUi):
         # Load groups on dialog initialization
         self.load_layer_groups()
 
-
-    
         
     def update_progress(self, sent, total):
         progress = float(sent) / total * 100
@@ -184,6 +183,13 @@ class PackageDialog(QDialog, DialogUi):
             dirs_to_copy=self.dirsToCopyWidget.dirs_to_copy(),
         )
 
+        # Create project name using selected geocode directly
+        project_name = f"{selected_geocode[:8]}"  # Changed to use selected geocode directly with .qgz extension
+
+        project = QgsProject.instance()
+        project.setTitle(project_name)  # Set the title to the selected geocode
+        project.write()
+
         # progress connections
         offline_convertor.total_progress_updated.connect(self.update_total)
         offline_convertor.task_progress_updated.connect(self.update_task)
@@ -196,17 +202,25 @@ class PackageDialog(QDialog, DialogUi):
             offline_convertor.convert()
             self.do_post_offline_convert_action(True)
 
-            # # Use the geocode folder for the new project file path
-            # new_project_file_path = os.path.join(geocode_folder, f"{selected_geocode}.qgs")
+             # # Set the project title in the metadata
+            # project = QgsProject.instance()
+            # project.setTitle(project_name)  # Set the title to the selected geocode
+            # project.write()
 
-            # # Check if the project file exists in the geocode folder
-            # if os.path.exists(new_project_file_path):
-            #     QMessageBox.warning(self, "File Exists", f"The project file '{new_project_file_path}' already exists.")
-            #     print(f"Error: The project file '{new_project_file_path}' already exists.")
-            # else:
-            #     # Save the current project to the new path
-            #     QgsProject.instance().write(new_project_file_path)
-            #     print(f"Project file saved to: {new_project_file_path}")
+            # # Rename the project file using shutil.move
+            # old_file = project.fileName()
+            # new_file = os.path.join(geocode_folder, project_name)  # Use the new project name
+            # shutil.move(old_file, new_file)  # Use shutil.move instead of os.rename
+
+            # autosave_file = os.path.join(geocode_folder, 'autosave_project_qfield.qgs')
+            # if os.path.exists(autosave_file):
+            #     os.remove(autosave_file)  # Remove the autosave project file
+            
+             # Rename the autosave project file if it exists
+            autosave_file = os.path.join(geocode_folder, 'autosave_project_qfield.qgs')
+            if os.path.exists(autosave_file):
+                new_autosave_file = os.path.join(geocode_folder, f"{selected_geocode[:8]}_qfield.qgs")
+                shutil.move(autosave_file, new_autosave_file)  # Rename the autosave file
 
         except Exception as err:
             self.do_post_offline_convert_action(False)
@@ -348,7 +362,7 @@ class PackageDialog(QDialog, DialogUi):
                 if layer.name().endswith(('_bgy', '_ea2024', '_bldg_point', '_block','_ea','_bldgpts','_GP_RefData','_SF_RefData'))
             }
 
-             # New code to filter Reference Data layers
+            # New code to filter Reference Data layers
             ref_data_layers = {
                 layer_key: layer for layer_key, layer in self.layers.items()
                 if layer.isValid() and 'Reference Data' in QgsProject.instance().layerTreeRoot().findLayer(layer.id()).parent().name()
@@ -414,6 +428,9 @@ class PackageDialog(QDialog, DialogUi):
 
             # Call the instance method to filter layers
             self.filter_layers(self.layers, selected_geocode)
+            # project_name = f"{selected_geocode[:8]}"
+            # project = QgsProject.instance()
+            # project.setTitle(project_name)
 
         except Exception as e:
             # Handle any unexpected exceptions
